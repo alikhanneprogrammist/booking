@@ -1,0 +1,45 @@
+{
+  "name": "booking",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:seed": "prisma db seed",
+    "db:reset": "prisma migrate reset",
+    "db:test:overlap": "tsx scripts/test-db-overlap.ts"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "bcryptjs": "^3.0.3",
+    "date-fns": "^4.4.0",
+    "date-fns-tz": "^3.2.0",
+    "next": "14.2.35",
+    "next-auth": "^5.0.0-beta.31",
+    "next-intl": "^4.13.0",
+    "prisma": "^6.19.3",
+    "react": "^18",
+    "react-dom": "^18",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.35",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
+    "tsx": "^4.22.4",
+    "typescript": "^5"
+  }
+}

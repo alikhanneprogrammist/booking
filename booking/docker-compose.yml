@@ -1,0 +1,44 @@
+# OFFICE 2020 — локальный/серверный запуск через Docker.
+#   docker compose up -d --build         # поднять БД + приложение (миграции накатятся сами)
+#   docker compose run --rm app npm run db:seed   # один раз залить реальные данные (ТЗ §5.8)
+#   docker compose down                  # остановить (данные сохраняются в томе pgdata)
+#
+# Приложение: http://localhost:3000  ·  демо-вход после seed: +77010000001 / office2020
+
+services:
+  db:
+    image: postgres:16-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: office2020
+      POSTGRES_PASSWORD: office2020
+      POSTGRES_DB: office2020
+      TZ: Asia/Almaty
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # btree_gist (анти-овербукинг) входит в стандартный образ postgres,
+    # расширение включает миграция 20260101000001_booking_no_overlap.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U office2020 -d office2020"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    ports:
+      - "5432:5432" # доступ к БД с хоста (можно убрать в проде)
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://office2020:office2020@db:5432/office2020?sslmode=disable"
+      # ВАЖНО: задайте свой секрет (openssl rand -base64 32), напр. через .env рядом с этим файлом.
+      AUTH_SECRET: "${AUTH_SECRET:-please-change-this-secret-min-32-characters}"
+      TZ: Asia/Almaty
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:

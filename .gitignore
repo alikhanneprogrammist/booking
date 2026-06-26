@@ -1,0 +1,16 @@
+# Секреты / окружение (никогда не коммитим; .env.example — можно)
+**/.env
+**/.env.*.local
+
+# Зависимости и сборка (дублирует вложенные .gitignore, для надёжности)
+**/node_modules/
+**/.next/
+**/out/
+**/build/
+*.tsbuildinfo
+
+# Локальные настройки Claude Code
+.claude/settings.local.json
+
+# OS
+.DS_Store
