@@ -65,7 +65,8 @@ export const bookingInput = z.object({
   guests: z.number().int().positive().default(1),
   total: z.number().nonnegative().optional(), // если не задан — авторасчёт
   deposit: z.number().nonnegative().default(0),
-  prepayment: z.number().nonnegative().default(0),
+  // optional (не default 0): отличаем «не задано» (виджет → подставить %) от явного 0.
+  prepayment: z.number().nonnegative().optional(),
   discountType: z.enum(['NONE', 'PERCENT', 'AMOUNT']).default('NONE'),
   discountValue: z.number().nonnegative().default(0),
   comment: z.string().optional(),
@@ -170,14 +171,15 @@ export async function createBooking(raw: BookingInput, createdById: string) {
     {type: data.discountType, value: data.discountValue},
   );
 
-  // Глобальное правило: если предоплата не указана — подставляем % от суммы.
+  // Глобальное правило: если предоплата НЕ задана (undefined, напр. из виджета) —
+  // подставляем % от суммы. Явный 0 от менеджера сохраняется как есть.
   const total = data.total ?? price.total;
   const prepayment =
-    data.prepayment > 0
+    data.prepayment != null
       ? data.prepayment
       : settings.prepaymentPercent > 0
         ? Math.round(total * settings.prepaymentPercent) / 100
-        : data.prepayment;
+        : 0;
 
   try {
     const booking = await prisma.$transaction((tx) =>
@@ -244,23 +246,42 @@ export async function updateBooking(id: string, raw: Partial<BookingInput>) {
   }
 
   try {
-    return await prisma.booking.update({
-      where: {id},
-      data: {
-        resourceId,
-        startAt,
-        endAt,
-        tariff,
-        ...(raw.clientId ? {clientId: raw.clientId} : {}),
-        ...(raw.status ? {status: raw.status} : {}),
-        ...(raw.guests != null ? {guests: raw.guests} : {}),
-        ...(raw.total != null ? {total: raw.total} : {}),
-        ...(raw.deposit != null ? {deposit: raw.deposit} : {}),
-        ...(raw.prepayment != null ? {prepayment: raw.prepayment} : {}),
-        ...(raw.discountType != null ? {discountType: raw.discountType} : {}),
-        ...(raw.discountValue != null ? {discountValue: raw.discountValue} : {}),
-        ...(raw.comment !== undefined ? {comment: raw.comment} : {}),
-      },
+    // Транзакция: при правке состава доп.услуг заменяем строки целиком
+    // (deleteMany + create), иначе total разойдётся с фактическими addons.
+    return await prisma.$transaction(async (tx) => {
+      if (raw.addons !== undefined) {
+        await tx.bookingAddon.deleteMany({where: {bookingId: id}});
+      }
+      return tx.booking.update({
+        where: {id},
+        data: {
+          resourceId,
+          startAt,
+          endAt,
+          tariff,
+          ...(raw.clientId ? {clientId: raw.clientId} : {}),
+          ...(raw.status ? {status: raw.status} : {}),
+          ...(raw.source ? {source: raw.source} : {}),
+          ...(raw.guests != null ? {guests: raw.guests} : {}),
+          ...(raw.total != null ? {total: raw.total} : {}),
+          ...(raw.deposit != null ? {deposit: raw.deposit} : {}),
+          ...(raw.prepayment != null ? {prepayment: raw.prepayment} : {}),
+          ...(raw.discountType != null ? {discountType: raw.discountType} : {}),
+          ...(raw.discountValue != null ? {discountValue: raw.discountValue} : {}),
+          ...(raw.comment !== undefined ? {comment: raw.comment} : {}),
+          ...(raw.addons !== undefined
+            ? {
+                addons: {
+                  create: raw.addons.map((a) => ({
+                    addonId: a.addonId,
+                    qty: a.qty ?? 1,
+                    priceAtBooking: a.priceAtBooking,
+                  })),
+                },
+              }
+            : {}),
+        },
+      });
     });
   } catch (e) {
     if (isOverlapDbError(e)) throw new BookingError('OVERLAP', 'Объект занят в это время');

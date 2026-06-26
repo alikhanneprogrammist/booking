@@ -34,6 +34,7 @@ function isUniquePhone(e: unknown): boolean {
 export async function saveClient(input: {
   id?: string; name: string; phone: string; note?: string; tags?: string[];
 }) {
+  if (!(await currentUser())) return {ok: false as const, error: 'FORBIDDEN' as const};
   const phone = normalizePhone(input.phone);
   const data = {name: input.name, phone, note: input.note ?? null, tags: input.tags ?? []};
   try {
@@ -49,6 +50,7 @@ export async function saveClient(input: {
 }
 
 export async function removeClient(id: string) {
+  if (!(await currentUser())) return {ok: false as const, error: 'FORBIDDEN' as const};
   try {
     await prisma.client.delete({where: {id}});
     refresh();
@@ -84,6 +86,7 @@ export async function saveBooking(input: BookingInput & {id?: string}) {
 }
 
 export async function cancelBookingAction(id: string) {
+  if (!(await currentUser())) return {ok: false as const, error: 'FORBIDDEN' as const};
   await cancelBooking(id);
   refresh();
   return {ok: true as const};

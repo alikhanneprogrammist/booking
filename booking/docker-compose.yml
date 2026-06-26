@@ -34,8 +34,9 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: "postgresql://office2020:office2020@db:5432/office2020?sslmode=disable"
-      # ВАЖНО: задайте свой секрет (openssl rand -base64 32), напр. через .env рядом с этим файлом.
-      AUTH_SECRET: "${AUTH_SECRET:-please-change-this-secret-min-32-characters}"
+      # ВАЖНО: секрет ОБЯЗАТЕЛЕН (openssl rand -base64 32). Берётся из .env рядом
+      # с этим файлом или из окружения; если не задан — контейнер не стартует (без дефолта).
+      AUTH_SECRET: "${AUTH_SECRET:?AUTH_SECRET is required — set it in booking/.env or env}"
       TZ: Asia/Almaty
     ports:
       - "3000:3000"
