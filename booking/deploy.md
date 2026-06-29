@@ -11,6 +11,77 @@
 
 ---
 
+## 0. Установка на новый сервер с нуля
+
+Пошагово для чистого сервера (Ubuntu 22.04/24.04 или Debian 12). Нужен root/sudo.
+
+### Шаг 1. Установить Docker
+```bash
+# официальный скрипт установки Docker + Compose-плагин
+curl -fsSL https://get.docker.com | sudo sh
+
+# (опционально) запускать docker без sudo — нужен релогин после команды
+sudo usermod -aG docker $USER
+
+# проверка
+docker --version && docker compose version
+```
+
+### Шаг 2. Получить код
+Репозиторий приватный — нужен доступ. Любой из вариантов:
+
+**A. git clone по SSH** (сгенерируй на сервере ключ и добавь его как Deploy Key в репозиторий):
+```bash
+ssh-keygen -t ed25519 -C "server" -f ~/.ssh/id_ed25519 -N ""
+cat ~/.ssh/id_ed25519.pub
+# вставь вывод в GitHub → репозиторий → Settings → Deploy keys → Add deploy key
+git clone git@github.com:alikhanneprogrammist/booking.git
+cd booking/booking          # код приложения лежит в подпапке booking/
+```
+
+**B. git clone по HTTPS с токеном** (Personal Access Token со scope `repo`):
+```bash
+git clone https://<TOKEN>@github.com/alikhanneprogrammist/booking.git
+cd booking/booking
+```
+
+**C. без git — просто скопировать папку `booking/`** на сервер (scp/rsync) и зайти в неё.
+
+### Шаг 3. Создать `.env` со свежими секретами
+На каждом сервере — **свои** пароли/секреты (не переноси старые):
+```bash
+cp .env.example .env
+openssl rand -hex 24      # → впиши в POSTGRES_PASSWORD
+openssl rand -base64 32   # → впиши в AUTH_SECRET
+nano .env                 # заполни значения (см. §2)
+```
+Минимум, что задать в `.env`: `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`,
+`DATABASE_URL` (тот же пароль; host=`127.0.0.1` для команд с хоста), `AUTH_SECRET`,
+`ADMIN_PHONE`, `ADMIN_PASSWORD`, `TZ`. Подробности — §2.
+
+### Шаг 4. Поднять стек
+```bash
+docker compose up -d --build
+docker compose logs -f app     # дождись «✓ Ready», проверь строку ensure-admin
+```
+Миграции и создание первого админа (из `ADMIN_*`) выполнятся автоматически.
+Сидить демо-данные на проде **не нужно**.
+
+### Шаг 5. Проверить
+```bash
+curl -I http://localhost:3000/ru/login   # → 200
+```
+Открой `http://<IP-сервера>:3000`, войди под `ADMIN_PHONE` / `ADMIN_PASSWORD`.
+
+### Шаг 6. Безопасность (прод)
+- Закрой порт БД наружу: убери блок `ports: ["5432:5432"]` у сервиса `db` в `docker-compose.yml` (приложение ходит в БД по внутренней сети). Тогда пароль БД можно проще.
+- Поставь домен + HTTPS через reverse-proxy (Nginx/Caddy) — см. §8.
+- Фаервол: открой только `80/443` (и `22`), порт `3000` спрячь за прокси.
+
+Дальнейшее — обновления (§5), бэкапы (§7), внешний Postgres (§9).
+
+---
+
 ## 1. Требования
 
 - Docker Engine 24+ и Docker Compose v2 (`docker compose`, не `docker-compose`).
