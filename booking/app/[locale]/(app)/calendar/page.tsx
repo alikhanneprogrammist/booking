@@ -1,6 +1,6 @@
 import {setRequestLocale} from 'next-intl/server';
 import CalendarView from '@/components/calendar/CalendarView';
-import {getResources, getAddons, getClients, getBookings} from '@/lib/queries';
+import {getResources, getAddons, getClients, getWaiters, getBookings} from '@/lib/queries';
 
 // Живые данные из БД на каждый запрос (и без обращения к БД на этапе сборки).
 export const dynamic = 'force-dynamic';
@@ -13,10 +13,11 @@ export default async function CalendarPage({
   const {locale} = await params;
   setRequestLocale(locale);
 
-  const [resources, addons, clients, bookings] = await Promise.all([
+  const [resources, addons, clients, waiters, bookings] = await Promise.all([
     getResources(),
     getAddons(),
     getClients(),
+    getWaiters(),
     getBookings(),
   ]);
 
@@ -26,6 +27,7 @@ export default async function CalendarPage({
         resources={resources}
         addons={addons}
         clients={clients}
+        waiters={waiters}
         bookings={bookings}
       />
     </div>

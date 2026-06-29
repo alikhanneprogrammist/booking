@@ -8,7 +8,7 @@ import {durationHours} from '@/lib/time';
 import {toLocalInput, fromLocalInput, rangesOverlap} from '@/lib/calendar';
 import {saveBooking, cancelBookingAction, saveClient} from '@/lib/actions';
 import type {
-  MockResource, MockAddon, MockClient, MockBooking, Tariff, BookingStatus, BookingSource, DiscountType,
+  MockResource, MockAddon, MockClient, MockWaiter, MockBooking, Tariff, BookingStatus, BookingSource, DiscountType,
 } from '@/lib/mock-data';
 
 const TARIFFS: Tariff[] = ['HOURLY', 'HALF_DAY', 'FULL_DAY', 'WEEKEND', 'CUSTOM'];
@@ -17,7 +17,7 @@ const STATUSES: BookingStatus[] = ['NEW', 'CONFIRMED', 'PREPAID', 'COMPLETED', '
 const SOURCES: BookingSource[] = ['ADMIN', 'PHONE', 'WHATSAPP', 'INSTAGRAM', 'WIDGET'];
 
 export default function BookingDialog({
-  mode, booking, prefill, resources, addons, clients, bookings, locale,
+  mode, booking, prefill, resources, addons, clients, waiters, bookings, locale,
   onSaved, onClose,
 }: {
   mode: 'create' | 'edit';
@@ -26,6 +26,7 @@ export default function BookingDialog({
   resources: MockResource[];
   addons: MockAddon[];
   clients: MockClient[];
+  waiters: MockWaiter[];
   bookings: MockBooking[];
   locale: string;
   onSaved: () => void;
@@ -51,6 +52,7 @@ export default function BookingDialog({
   const [tariff, setTariff] = useState<Tariff>(init?.tariff ?? 'HOURLY');
   const [status, setStatus] = useState<BookingStatus>(init?.status ?? 'NEW');
   const [source, setSource] = useState<BookingSource>(init?.source ?? 'ADMIN');
+  const [waiterId, setWaiterId] = useState(init?.waiterId ?? '');
   const [qty, setQty] = useState<Record<string, number>>(() => {
     const m: Record<string, number> = {};
     init?.addons.forEach((a) => (m[a.addonId] = a.qty));
@@ -145,6 +147,7 @@ export default function BookingDialog({
       discountType,
       discountValue: discountType === 'NONE' ? 0 : Number(discountValue) || 0,
       comment: comment || undefined,
+      waiterId: waiterId || undefined,
       addons: addons
         .filter((a) => (qty[a.id] ?? 0) > 0)
         .map((a) => ({addonId: a.id, qty: qty[a.id], priceAtBooking: a.price})),
@@ -271,6 +274,19 @@ export default function BookingDialog({
             {tb('source')}
             <select className={fieldCls} value={source} onChange={(e) => setSource(e.target.value as BookingSource)}>
               {SOURCES.map((x) => <option key={x} value={x}>{tsrc(x)}</option>)}
+            </select>
+          </label>
+          <label className={labelCls}>
+            {tb('waiter')}
+            <select className={fieldCls} value={waiterId} onChange={(e) => setWaiterId(e.target.value)}>
+              <option value="">{tb('waiterNone')}</option>
+              {waiters
+                .filter((w) => w.isActive || w.id === init?.waiterId)
+                .map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name}{!w.isActive ? ` (${tb('waiterInactive')})` : ''}
+                  </option>
+                ))}
             </select>
           </label>
         </div>

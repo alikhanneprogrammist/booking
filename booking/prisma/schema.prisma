@@ -61,16 +61,16 @@ enum DiscountType {
 // ───────────────────────── User — сотрудник (§5.1) ─────────────────────
 
 model User {
-  id           String    @id @default(cuid())
+  id           String   @id @default(cuid())
   name         String
-  phone        String    @unique
+  phone        String   @unique
   email        String?
   passwordHash String
-  role         Role      @default(MANAGER)
-  isActive     Boolean   @default(true)
-  createdAt    DateTime  @default(now())
+  role         Role     @default(MANAGER)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
 
-  bookings     Booking[] @relation("BookingCreatedBy")
+  bookings Booking[] @relation("BookingCreatedBy")
 }
 
 // ───────────────────────── Resource — объект (§5.2) ────────────────────
@@ -87,14 +87,14 @@ model Resource {
   sortOrder Int          @default(0)
 
   // Состав объекта
-  floors          Json?    // список этажей с описанием
-  hasKaraoke      Boolean  @default(false)
-  hasFinnishSauna Boolean  @default(false)
-  hasHammam       Boolean  @default(false)
-  hasPool         Boolean  @default(false)
-  hasBanquet      Boolean  @default(false)
-  restRooms       Int      @default(0)
-  hasKitchen      Boolean  @default(false)
+  floors          Json? // список этажей с описанием
+  hasKaraoke      Boolean @default(false)
+  hasFinnishSauna Boolean @default(false)
+  hasHammam       Boolean @default(false)
+  hasPool         Boolean @default(false)
+  hasBanquet      Boolean @default(false)
+  restRooms       Int     @default(0)
+  hasKitchen      Boolean @default(false)
   extraInfo       String?
 
   // Тарифы (§4.9)
@@ -112,13 +112,13 @@ model Resource {
 // ───────────────────────── ServiceAddon — доп.услуга (§5.3) ────────────
 
 model ServiceAddon {
-  id        String        @id @default(cuid())
+  id        String    @id @default(cuid())
   nameRu    String
   nameKk    String
-  price     Decimal       @db.Decimal(12, 2)
-  unit      AddonUnit     @default(PER_ITEM)
-  isActive  Boolean       @default(true)
-  sortOrder Int           @default(0)
+  price     Decimal   @db.Decimal(12, 2)
+  unit      AddonUnit @default(PER_ITEM)
+  isActive  Boolean   @default(true)
+  sortOrder Int       @default(0)
 
   bookingAddons BookingAddon[]
 }
@@ -126,14 +126,14 @@ model ServiceAddon {
 // ───────────────────────── Client — клиент (§5.4) ──────────────────────
 
 model Client {
-  id        String    @id @default(cuid())
+  id        String   @id @default(cuid())
   name      String
-  phone     String    @unique
+  phone     String   @unique
   note      String?
-  tags      String[]  @default([])
-  createdAt DateTime  @default(now())
+  tags      String[] @default([])
+  createdAt DateTime @default(now())
 
-  bookings  Booking[]
+  bookings Booking[]
 }
 
 // ───────────────────────── Booking — бронь (§5.5) ──────────────────────
@@ -141,23 +141,23 @@ model Client {
 // миграцией (см. ТЗ §4.6) — Prisma его не выражает декларативно.
 
 model Booking {
-  id         String        @id @default(cuid())
+  id         String   @id @default(cuid())
   resourceId String
-  resource   Resource      @relation(fields: [resourceId], references: [id])
+  resource   Resource @relation(fields: [resourceId], references: [id])
   clientId   String
-  client     Client        @relation(fields: [clientId], references: [id])
+  client     Client   @relation(fields: [clientId], references: [id])
 
-  startAt    DateTime      @db.Timestamptz(6)
-  endAt      DateTime      @db.Timestamptz(6)
+  startAt DateTime @db.Timestamptz(6)
+  endAt   DateTime @db.Timestamptz(6)
 
-  status     BookingStatus @default(NEW)
-  source     BookingSource @default(ADMIN)
-  tariff     Tariff        @default(HOURLY)
-  guests     Int           @default(1)
+  status BookingStatus @default(NEW)
+  source BookingSource @default(ADMIN)
+  tariff Tariff        @default(HOURLY)
+  guests Int           @default(1)
 
-  total      Decimal       @default(0) @db.Decimal(12, 2)
-  deposit    Decimal       @default(0) @db.Decimal(12, 2)
-  prepayment Decimal       @default(0) @db.Decimal(12, 2)
+  total      Decimal @default(0) @db.Decimal(12, 2)
+  deposit    Decimal @default(0) @db.Decimal(12, 2)
+  prepayment Decimal @default(0) @db.Decimal(12, 2)
 
   // Скидка по брони (§4.9): тип + значение (% или сумма ₸). Пишется в историю клиента.
   discountType  DiscountType @default(NONE)
@@ -165,14 +165,34 @@ model Booking {
 
   comment     String?
   createdById String
-  createdBy   User          @relation("BookingCreatedBy", fields: [createdById], references: [id])
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  createdBy   User    @relation("BookingCreatedBy", fields: [createdById], references: [id])
+
+  // Назначенный официант (необязателен; справочник Waiter).
+  waiterId String?
+  waiter   Waiter? @relation(fields: [waiterId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   addons BookingAddon[]
 
   @@index([resourceId, startAt, endAt])
   @@index([clientId])
+  @@index([waiterId])
+}
+
+// ───────────────────────── Waiter — официант (справочник) ──────────────
+// Простой справочник официантов для назначения на бронь. Без входа в систему
+// (это не User): имя + активность + порядок. Управляется в /settings/waiters.
+
+model Waiter {
+  id        String   @id @default(cuid())
+  name      String
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  bookings Booking[]
 }
 
 // ───────────────────────── Settings — настройки заведения ──────────────
@@ -194,7 +214,7 @@ model Settings {
   requisites  String? // реквизиты/доп. информация для счетов
 
   // Глобальные правила брони
-  minBookingHours  Int @default(3) // минимальный «пол» длительности поверх объектных minHours
+  minBookingHours   Int @default(3) // минимальный «пол» длительности поверх объектных minHours
   prepaymentPercent Int @default(0) // % предоплаты по умолчанию (0 = не применять)
 
   // Публичная страница заявок /book (двуязычно ru/kk; пусто → берётся i18n-дефолт)

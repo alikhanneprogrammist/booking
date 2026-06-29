@@ -70,6 +70,8 @@ export const bookingInput = z.object({
   discountType: z.enum(['NONE', 'PERCENT', 'AMOUNT']).default('NONE'),
   discountValue: z.number().nonnegative().default(0),
   comment: z.string().optional(),
+  // Назначенный официант (необязателен). '' → не назначен (null).
+  waiterId: z.string().optional(),
   addons: z.array(ADDON).default([]),
 });
 
@@ -199,6 +201,7 @@ export async function createBooking(raw: BookingInput, createdById: string) {
           discountType: data.discountType,
           discountValue: data.discountValue,
           comment: data.comment,
+          waiterId: data.waiterId || null,
           createdById,
           addons: {
             create: data.addons.map((a) => ({
@@ -269,6 +272,7 @@ export async function updateBooking(id: string, raw: Partial<BookingInput>) {
           ...(raw.discountType != null ? {discountType: raw.discountType} : {}),
           ...(raw.discountValue != null ? {discountValue: raw.discountValue} : {}),
           ...(raw.comment !== undefined ? {comment: raw.comment} : {}),
+          ...(raw.waiterId !== undefined ? {waiterId: raw.waiterId || null} : {}),
           ...(raw.addons !== undefined
             ? {
                 addons: {

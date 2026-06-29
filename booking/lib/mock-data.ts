@@ -62,6 +62,13 @@ export interface MockUser {
   isActive: boolean;
 }
 
+export interface MockWaiter {
+  id: string;
+  name: string;
+  isActive: boolean;
+  sortOrder: number;
+}
+
 export interface MockBooking {
   id: string;
   resourceId: string;
@@ -78,6 +85,8 @@ export interface MockBooking {
   discountType: DiscountType;
   discountValue: number;
   comment?: string;
+  waiterId?: string;
+  waiterName?: string; // денормализовано для отображения (из связи Waiter)
   addons: {addonId: string; qty: number; priceAtBooking: number}[];
 }
 
@@ -155,6 +164,15 @@ export const MOCK_USERS: MockUser[] = [
   {id: 'u-m3', name: 'Гульнара (смена 3)', phone: '+77010000004', role: 'MANAGER', isActive: false},
 ];
 
+// ───────────────────────── Официанты (демо-справочник) ────────────────
+
+export const MOCK_WAITERS: MockWaiter[] = [
+  {id: 'w-1', name: 'Ержан', isActive: true, sortOrder: 1},
+  {id: 'w-2', name: 'Мадина', isActive: true, sortOrder: 2},
+  {id: 'w-3', name: 'Тимур', isActive: true, sortOrder: 3},
+  {id: 'w-4', name: 'Сабина', isActive: false, sortOrder: 4},
+];
+
 // ───────────────────────── Клиенты ────────────────────────────────────
 
 export const MOCK_CLIENTS: MockClient[] = [
@@ -171,7 +189,7 @@ export const MOCK_BOOKINGS: MockBooking[] = [
     startAt: at(2026, 6, 22, 22, 0), endAt: at(2026, 6, 23, 2, 0), // через полночь
     status: 'CONFIRMED', source: 'PHONE', tariff: 'HOURLY', guests: 18,
     total: 140000, deposit: 0, prepayment: 50000, comment: 'День рождения',
-    discountType: 'NONE', discountValue: 0,
+    discountType: 'NONE', discountValue: 0, waiterId: 'w-1',
     addons: [{addonId: 'a-hookah', qty: 2, priceAtBooking: 15000}],
   },
   {
@@ -195,7 +213,7 @@ export const MOCK_BOOKINGS: MockBooking[] = [
     startAt: at(2026, 6, 22, 19, 0), endAt: at(2026, 6, 22, 23, 30),
     status: 'CONFIRMED', source: 'ADMIN', tariff: 'CUSTOM', guests: 40,
     total: 350000, deposit: 200000, prepayment: 100000, comment: 'Корпоратив',
-    discountType: 'NONE', discountValue: 0,
+    discountType: 'NONE', discountValue: 0, waiterId: 'w-2',
     addons: [{addonId: 'a-music', qty: 1, priceAtBooking: 20000}],
   },
   {

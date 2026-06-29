@@ -7,6 +7,7 @@ const tabs = [
   {href: '/settings', key: 'venue', exact: true},
   {href: '/settings/resources', key: 'resources', exact: false},
   {href: '/settings/users', key: 'users', exact: false},
+  {href: '/settings/waiters', key: 'waiters', exact: false},
   {href: '/settings/public', key: 'public', exact: false},
 ] as const;
 

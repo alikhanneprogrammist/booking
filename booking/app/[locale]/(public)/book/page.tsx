@@ -1,5 +1,6 @@
 import {getTranslations, setRequestLocale} from 'next-intl/server';
 import {getResources, getSettings} from '@/lib/queries';
+import LocaleSwitcher from '@/components/LocaleSwitcher';
 import BookingRequestForm from './BookingRequestForm';
 
 // Данные объектов и тексты страницы читаем из БД на каждый запрос.
@@ -36,12 +37,15 @@ export default async function PublicBookPage({
   return (
     <div className="flex min-h-screen items-center justify-center bg-subtle px-4 py-10">
       <div className="w-full max-w-md rounded-xl border border-border bg-card p-8 shadow-sm">
-        <div className="flex items-center gap-2.5">
-          {settings.logoUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={settings.logoUrl} alt="" className="h-8 w-8 shrink-0 rounded object-contain" />
-          )}
-          <div className="text-base font-semibold tracking-tight">{company}</div>
+        <div className="flex items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2.5">
+            {settings.logoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={settings.logoUrl} alt="" className="h-8 w-8 shrink-0 rounded object-contain" />
+            )}
+            <div className="text-base font-semibold tracking-tight">{company}</div>
+          </div>
+          <LocaleSwitcher />
         </div>
         <h1 className="mt-4 text-xl font-semibold tracking-tight">{title}</h1>
         <p className="mt-1 text-sm text-muted">{subtitle}</p>
