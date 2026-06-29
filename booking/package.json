@@ -11,6 +11,7 @@
     "db:migrate": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
     "db:seed": "prisma db seed",
+    "db:ensure-admin": "tsx scripts/ensure-admin.ts",
     "db:reset": "prisma migrate reset",
     "db:test:overlap": "tsx scripts/test-db-overlap.ts"
   },

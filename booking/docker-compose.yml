@@ -39,6 +39,11 @@ services:
       # ВАЖНО: секрет ОБЯЗАТЕЛЕН (openssl rand -base64 32). Берётся из .env рядом
       # с этим файлом или из окружения; если не задан — контейнер не стартует (без дефолта).
       AUTH_SECRET: "${AUTH_SECRET:?AUTH_SECRET is required — set it in booking/.env or env}"
+      # Bootstrap первого администратора (см. scripts/ensure-admin.ts). Не обязательны:
+      # если пусты — шаг ensure-admin пропускается. Пароль применяется только при создании.
+      ADMIN_PHONE: "${ADMIN_PHONE:-}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:-}"
+      ADMIN_NAME: "${ADMIN_NAME:-}"
       TZ: Asia/Almaty
     ports:
       - "3000:3000"
