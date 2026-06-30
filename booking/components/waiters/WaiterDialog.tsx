@@ -21,10 +21,21 @@ export default function WaiterDialog({
 
   async function save() {
     setSaving(true);
-    await saveWaiter({
-      id: w?.id, name: name.trim(), isActive,
-      sortOrder: Number(sortOrder) || 0,
-    });
+    try {
+      const res = await saveWaiter({
+        id: w?.id, name: name.trim(), isActive,
+        sortOrder: Number(sortOrder) || 0,
+      });
+      if (!res.ok) {
+        setSaving(false);
+        alert(t('invalidName'));
+        return;
+      }
+    } catch {
+      setSaving(false);
+      alert(t('actionError'));
+      return;
+    }
     setSaving(false);
     onSaved?.();
     onClose();

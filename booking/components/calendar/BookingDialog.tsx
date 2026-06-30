@@ -157,6 +157,7 @@ export default function BookingDialog({
       if (res.error === 'OVERLAP') return setError(tb('occupied'));
       if (res.error === 'INVALID_RANGE') return setError(tb('invalidRange'));
       if (res.error === 'MIN_DURATION') return setError(tb('minDuration', {h: resource.minHours}));
+      if (res.error === 'WAITER_NOT_FOUND') return setError(tb('waiterNotFound'));
       return setError(('message' in res && res.message) ? res.message : String(res.error));
     }
     onSaved();

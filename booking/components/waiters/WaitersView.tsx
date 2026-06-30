@@ -48,8 +48,12 @@ export default function WaitersView({waiters}: {waiters: MockWaiter[]}) {
                     <button
                       className={`ml-3 ${btn}`}
                       onClick={async () => {
-                        await setWaiterActiveAction(w.id, !w.isActive);
-                        router.refresh();
+                        try {
+                          await setWaiterActiveAction(w.id, !w.isActive);
+                          router.refresh();
+                        } catch {
+                          alert(t('actionError'));
+                        }
                       }}
                     >
                       {w.isActive ? t('deactivate') : t('activate')}
@@ -58,12 +62,16 @@ export default function WaitersView({waiters}: {waiters: MockWaiter[]}) {
                       className={`ml-3 ${btn}`}
                       onClick={async () => {
                         if (!confirm(t('confirmDelete'))) return;
-                        const res = await removeWaiter(w.id);
-                        if (!res.ok) {
-                          alert(t('cantDelete'));
-                          return;
+                        try {
+                          const res = await removeWaiter(w.id);
+                          if (!res.ok) {
+                            alert(t('cantDelete'));
+                            return;
+                          }
+                          router.refresh();
+                        } catch {
+                          alert(t('actionError'));
                         }
-                        router.refresh();
                       }}
                     >
                       {t('delete')}

@@ -230,8 +230,13 @@ export async function saveWaiter(input: {
   id?: string; name: string; isActive: boolean; sortOrder: number;
 }) {
   await requireAdmin();
+  // Валидация на сервере (клиентский disabled — не барьер): имя обязательно, разумная длина.
+  const name = (input.name ?? '').trim();
+  if (name.length < 1 || name.length > 100) {
+    return {ok: false as const, error: 'INVALID_NAME' as const};
+  }
   const data = {
-    name: input.name.trim(),
+    name,
     isActive: input.isActive,
     sortOrder: Number.isFinite(input.sortOrder) ? Math.round(input.sortOrder) : 0,
   };
