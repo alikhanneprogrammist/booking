@@ -1,9 +1,10 @@
-import type {Metadata} from 'next';
+import type {Metadata, Viewport} from 'next';
 import localFont from 'next/font/local';
 import {NextIntlClientProvider, hasLocale} from 'next-intl';
 import {notFound} from 'next/navigation';
 import {setRequestLocale} from 'next-intl/server';
 import {routing} from '@/i18n/routing';
+import ServiceWorkerRegister from '@/components/ServiceWorkerRegister';
 import '../globals.css';
 
 // Самохостинг Inter (variable, latin+cyrillic) — сборка не зависит от Google Fonts.
@@ -20,6 +21,17 @@ const inter = localFont({
 export const metadata: Metadata = {
   title: 'OFFICE 2020 — Бронирование',
   description: 'Система онлайн-брони и управления ресурсами OFFICE 2020',
+  applicationName: 'OFFICE 2020',
+  // iOS: «Добавить на главный экран» → полноэкранный режим + иконка.
+  appleWebApp: {capable: true, statusBarStyle: 'default', title: 'OFFICE 2020'},
+  icons: {
+    icon: '/icons/icon-192.png',
+    apple: '/icons/apple-touch-icon.png',
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#6366f1',
 };
 
 export function generateStaticParams() {
@@ -41,6 +53,7 @@ export default async function LocaleLayout({
     <html lang={locale} className={inter.variable} suppressHydrationWarning>
       <body className="font-sans antialiased">
         <NextIntlClientProvider>{children}</NextIntlClientProvider>
+        <ServiceWorkerRegister />
       </body>
     </html>
   );
