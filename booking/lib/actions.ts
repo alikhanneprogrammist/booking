@@ -181,9 +181,12 @@ export async function removeAddon(id: string) {
 
 // ───────────────────────── Сотрудники (ТЗ §4.7 FR-USER) — ADMIN ────────
 
+/** Минимальная длина задаваемого вручную пароля. */
+const MIN_PASSWORD = 6;
+
 export async function saveUser(input: {
   id?: string; name: string; phone: string; email?: string;
-  role: 'ADMIN' | 'MANAGER'; isActive: boolean;
+  role: 'ADMIN' | 'MANAGER'; isActive: boolean; password?: string;
 }) {
   await requireAdmin();
   const phone = normalizePhone(input.phone);
@@ -196,12 +199,17 @@ export async function saveUser(input: {
     if (input.id) {
       u = await prisma.user.update({where: {id: input.id}, data: base});
     } else {
-      // Новому сотруднику нужен пароль — выдаём временный (меняется при первом входе).
-      const tempPassword = `OFF-${randomUUID().slice(0, 8)}`;
-      const passwordHash = await bcrypt.hash(tempPassword, 10);
+      // Пароль: заданный админом (если валиден) либо авто-временный.
+      const chosen = (input.password ?? '').trim();
+      if (chosen && chosen.length < MIN_PASSWORD) {
+        return {ok: false as const, error: 'WEAK_PASSWORD' as const};
+      }
+      const password = chosen || `OFF-${randomUUID().slice(0, 8)}`;
+      const passwordHash = await bcrypt.hash(password, 10);
       u = await prisma.user.create({data: {...base, passwordHash}});
       refresh();
-      return {ok: true as const, user: toUser(u), tempPassword};
+      // tempPassword показываем админу только если сгенерировали сами.
+      return {ok: true as const, user: toUser(u), tempPassword: chosen ? undefined : password};
     }
     refresh();
     return {ok: true as const, user: toUser(u)};
@@ -218,13 +226,14 @@ export async function setUserActiveAction(id: string, isActive: boolean) {
   return {ok: true as const};
 }
 
-/** FR-USER-3: сброс пароля — генерирует временный, хэширует, возвращает открытый. */
-export async function resetPasswordAction(id: string) {
+/** FR-USER-3: сброс пароля — админ задаёт новый пароль вручную. */
+export async function resetPasswordAction(id: string, newPassword: string) {
   await requireAdmin();
-  const tempPassword = `OFF-${randomUUID().slice(0, 8)}`;
-  const passwordHash = await bcrypt.hash(tempPassword, 10);
+  const password = (newPassword ?? '').trim();
+  if (password.length < MIN_PASSWORD) return {ok: false as const, error: 'WEAK_PASSWORD' as const};
+  const passwordHash = await bcrypt.hash(password, 10);
   await prisma.user.update({where: {id}, data: {passwordHash}});
-  return {ok: true as const, tempPassword};
+  return {ok: true as const};
 }
 
 // ───────────────────────── Официанты (справочник) — ADMIN ─────────────

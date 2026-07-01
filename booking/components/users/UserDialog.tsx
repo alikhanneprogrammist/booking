@@ -19,6 +19,7 @@ export default function UserDialog({
   const [email, setEmail] = useState(u?.email ?? '');
   const [role, setRole] = useState<'ADMIN' | 'MANAGER'>(u?.role ?? 'MANAGER');
   const [isActive, setIsActive] = useState(u?.isActive ?? true);
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -28,10 +29,11 @@ export default function UserDialog({
     const res = await saveUser({
       id: u?.id, name: name.trim(), phone: phone.trim(),
       email: email.trim() || undefined, role, isActive,
+      password: !u ? (password.trim() || undefined) : undefined,
     });
     setSaving(false);
     if (!res.ok) {
-      setError(t('duplicatePhone')); // единственная ожидаемая ошибка — занятый телефон
+      setError(res.error === 'WEAK_PASSWORD' ? t('weakPassword') : t('duplicatePhone'));
       return;
     }
     // Новому сотруднику сервер выдаёт временный пароль (FR-USER, §5.8).
@@ -60,6 +62,11 @@ export default function UserDialog({
               <option value="ADMIN">{t('ADMIN')}</option>
             </select>
           </label>
+          {!u && (
+            <label className={label}>{t('password')}
+              <input className={field} type="text" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t('passwordHint')} />
+            </label>
+          )}
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
             {t('active')}

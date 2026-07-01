@@ -61,8 +61,10 @@ export default function UsersView({users}: {users: MockUser[]}) {
                   <button
                     className={`ml-3 ${btn}`}
                     onClick={async () => {
-                      const res = await resetPasswordAction(u.id);
-                      alert(t('tempPassword', {p: res.tempPassword}));
+                      const np = window.prompt(t('enterNewPassword'));
+                      if (np == null) return; // отмена
+                      const res = await resetPasswordAction(u.id, np);
+                      alert(res.ok ? t('passwordChanged') : t('weakPassword'));
                     }}
                   >
                     {t('resetPassword')}
