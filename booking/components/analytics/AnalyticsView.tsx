@@ -8,7 +8,10 @@ import {kpis, byResource, byEnum, topClients, addonStats, type CountRevenue} fro
 import {almatyDayStart, addDays} from '@/lib/calendar';
 import {toAlmaty} from '@/lib/time';
 
-type Preset = 'month' | '30d' | 'all';
+type Preset = 'today' | 'week' | 'month' | '30d' | 'all';
+
+// Скользящие окна «последние N дней» (вкл. сегодня).
+const ROLLING: Record<string, number> = {today: 1, week: 7, '30d': 30};
 
 export default function AnalyticsView({
   bookings, resources, clients, addons, today, nowMs,
@@ -49,9 +52,10 @@ export default function AnalyticsView({
         return w.getFullYear() === today.year && w.getMonth() === today.month;
       });
     }
+    const days = ROLLING[preset] ?? 30;
     const now = new Date(nowMs);
     const to = addDays(almatyDayStart(now), 1);
-    const from = almatyDayStart(addDays(now, -29));
+    const from = almatyDayStart(addDays(now, -(days - 1)));
     return bookings.filter((b) => b.startAt >= from && b.startAt < to);
   }, [bookings, preset, today, nowMs]);
 
@@ -117,7 +121,9 @@ export default function AnalyticsView({
     <div className="mx-auto max-w-4xl p-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-lg font-semibold tracking-tight">{t('title')}</h1>
-        <div className="inline-flex rounded-md border border-border p-0.5">
+        <div className="inline-flex flex-wrap rounded-md border border-border p-0.5">
+          {presetBtn('today', t('period.today'))}
+          {presetBtn('week', t('period.week'))}
           {presetBtn('month', t('period.month'))}
           {presetBtn('30d', t('period.last30'))}
           {presetBtn('all', t('period.all'))}
