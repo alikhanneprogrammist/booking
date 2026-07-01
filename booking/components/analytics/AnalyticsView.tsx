@@ -90,7 +90,12 @@ export default function AnalyticsView({
   const emptyBox = <div className="rounded-lg border border-border py-6 text-center text-sm text-muted">{t('empty')}</div>;
   const headCls = 'mb-2 text-sm font-medium uppercase tracking-wide text-muted';
 
-  const breakdown = (title: string, rows: CountRevenue[], label: (v: string) => string) => {
+  const breakdown = (
+    title: string,
+    rows: CountRevenue[],
+    label: (v: string) => string,
+    lostKey?: string,
+  ) => {
     const max = Math.max(1, ...rows.map((r) => r.count));
     return (
       <div>
@@ -99,15 +104,20 @@ export default function AnalyticsView({
           emptyBox
         ) : (
           <div className="space-y-2 rounded-lg border border-border p-3">
-            {rows.map((r) => (
-              <div key={r.key}>
-                <div className="flex items-baseline justify-between text-sm">
-                  <span className="truncate">{label(r.key)}</span>
-                  <span className="ml-2 shrink-0 tabular-nums text-muted">{r.count} · {money(r.revenue)}</span>
+            {rows.map((r) => {
+              const lost = r.key === lostKey;
+              return (
+                <div key={r.key}>
+                  <div className="flex items-baseline justify-between text-sm">
+                    <span className="truncate">{label(r.key)}</span>
+                    <span className={`ml-2 shrink-0 tabular-nums ${lost ? 'text-red-500/70' : 'text-muted'}`}>
+                      {r.count} · {money(r.revenue)}{lost ? ` · ${t('lost')}` : ''}
+                    </span>
+                  </div>
+                  {bar(r.count / max)}
                 </div>
-                {bar(r.count / max)}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -170,7 +180,7 @@ export default function AnalyticsView({
 
       {/* Разбивки */}
       <section className="mt-6 grid gap-4 sm:grid-cols-3">
-        {breakdown(t('byStatus'), statusRows, (v) => ts(v))}
+        {breakdown(t('byStatus'), statusRows, (v) => ts(v), 'CANCELLED')}
         {breakdown(t('bySource'), sourceRows, (v) => tsrc(v))}
         {breakdown(t('byTariff'), tariffRows, (v) => tt(v))}
       </section>
