@@ -81,9 +81,12 @@ export default function AnalyticsView({
     </button>
   );
 
-  const bar = (frac: number) => (
+  const bar = (frac: number, color?: string) => (
     <div className="mt-1 h-1.5 overflow-hidden rounded bg-subtle">
-      <div className="h-full rounded bg-primary" style={{width: `${Math.round(frac * 100)}%`}} />
+      <div
+        className={`h-full rounded ${color ? '' : 'bg-primary'}`}
+        style={{width: `${Math.round(frac * 100)}%`, backgroundColor: color}}
+      />
     </div>
   );
 
@@ -171,7 +174,7 @@ export default function AnalyticsView({
                   </span>
                   <span className="ml-2 shrink-0 tabular-nums text-muted">{r.count} · {money(r.revenue)}</span>
                 </div>
-                {bar(r.revenue / maxResRev)}
+                {bar(r.revenue / maxResRev, rMap.get(r.key)?.color)}
               </div>
             ))}
           </div>
