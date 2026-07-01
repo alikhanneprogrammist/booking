@@ -55,7 +55,7 @@ export default function BookingRequestForm({resources}: {resources: ResourceOpti
 
   const [resourceId, setResourceId] = useState(resources[0]?.id ?? '');
   const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState('+7'); // префикс по умолчанию; можно стереть
   const [date, setDate] = useState('');
   const [start, setStart] = useState('20:00');
   const [end, setEnd] = useState('23:00');
@@ -109,7 +109,7 @@ export default function BookingRequestForm({resources}: {resources: ResourceOpti
 
   function reset() {
     setName('');
-    setPhone('');
+    setPhone('+7');
     setComment('');
     setGuests('1');
     setError(null);
