@@ -2,7 +2,9 @@ import {getTranslations} from 'next-intl/server';
 import Sidebar from '@/components/Sidebar';
 import LocaleSwitcher from '@/components/LocaleSwitcher';
 import {currentUser} from '@/lib/auth-helpers';
-import {getSettings} from '@/lib/queries';
+import {getSettings, getClients} from '@/lib/queries';
+import {toAlmaty} from '@/lib/time';
+import {upcomingBirthdays} from '@/lib/birthdays';
 import {doSignOut} from '@/lib/auth-actions';
 
 export default async function AppShell({
@@ -15,6 +17,15 @@ export default async function AppShell({
   const isAdmin = user?.role === 'ADMIN';
   const settings = await getSettings();
 
+  // Счётчик для бейджа «Дни рождения» — клиенты с ДР в ближайшие 7 дней (Алматы).
+  const w = toAlmaty(new Date());
+  const clients = await getClients();
+  const birthdaysSoon = upcomingBirthdays(
+    clients,
+    {year: w.getFullYear(), month: w.getMonth(), day: w.getDate()},
+    7,
+  ).length;
+
   return (
     <div className="flex min-h-screen">
       <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-card">
@@ -25,7 +36,7 @@ export default async function AppShell({
           )}
           <span className="truncate">{settings.companyName || 'OFFICE 2020'}</span>
         </div>
-        <Sidebar isAdmin={isAdmin} />
+        <Sidebar isAdmin={isAdmin} birthdaysSoon={birthdaysSoon} />
         <div className="mt-auto border-t border-border px-4 py-3">
           {user && (
             <div className="mb-2 truncate text-xs text-muted">

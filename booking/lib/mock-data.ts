@@ -49,6 +49,7 @@ export interface MockClient {
   phone: string;
   note?: string;
   tags?: string[];
+  dateOfBirth?: Date; // день рождения (календарная дата, UTC-полночь)
 }
 
 export type Role = 'ADMIN' | 'MANAGER';
@@ -175,10 +176,11 @@ export const MOCK_WAITERS: MockWaiter[] = [
 
 // ───────────────────────── Клиенты ────────────────────────────────────
 
+// ДР хранятся как UTC-полночь (календарная дата). new Date(Date.UTC(y,m0,d)).
 export const MOCK_CLIENTS: MockClient[] = [
-  {id: 'c-1', name: 'Алихан Серіков', phone: '+77011234567'},
-  {id: 'c-2', name: 'Дмитрий Ким', phone: '+77019876543'},
-  {id: 'c-3', name: 'Айгерім Нур', phone: '+77017778899'},
+  {id: 'c-1', name: 'Алихан Серіков', phone: '+77011234567', dateOfBirth: new Date(Date.UTC(1990, 2, 15))},
+  {id: 'c-2', name: 'Дмитрий Ким', phone: '+77019876543', dateOfBirth: new Date(Date.UTC(1988, 6, 3))},
+  {id: 'c-3', name: 'Айгерім Нур', phone: '+77017778899', dateOfBirth: new Date(Date.UTC(1995, 10, 22))},
 ];
 
 // ───────────────────────── Демо-брони (вокруг 22.06.2026) ──────────────

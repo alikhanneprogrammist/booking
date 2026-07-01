@@ -53,7 +53,10 @@ export function toAddon(a: AddonRow): MockAddon {
 }
 
 export function toClient(c: ClientRow): MockClient {
-  return {id: c.id, name: c.name, phone: c.phone, note: c.note ?? undefined, tags: c.tags};
+  return {
+    id: c.id, name: c.name, phone: c.phone, note: c.note ?? undefined, tags: c.tags,
+    dateOfBirth: c.dateOfBirth ?? undefined,
+  };
 }
 
 export function toUser(u: UserRow): MockUser {

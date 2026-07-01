@@ -32,11 +32,14 @@ function isUniquePhone(e: unknown): boolean {
 // ───────────────────────── Клиенты (ТЗ §4.3) ──────────────────────────
 
 export async function saveClient(input: {
-  id?: string; name: string; phone: string; note?: string; tags?: string[];
+  id?: string; name: string; phone: string; note?: string; tags?: string[]; dateOfBirth?: Date;
 }) {
   if (!(await currentUser())) return {ok: false as const, error: 'FORBIDDEN' as const};
   const phone = normalizePhone(input.phone);
-  const data = {name: input.name, phone, note: input.note ?? null, tags: input.tags ?? []};
+  const data = {
+    name: input.name, phone, note: input.note ?? null, tags: input.tags ?? [],
+    dateOfBirth: input.dateOfBirth ?? null,
+  };
   try {
     const c = input.id
       ? await prisma.client.update({where: {id: input.id}, data})

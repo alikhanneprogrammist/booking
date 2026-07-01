@@ -4,6 +4,7 @@ import {useState} from 'react';
 import {useLocale, useTranslations} from 'next-intl';
 import {Link, useRouter} from '@/i18n/navigation';
 import {removeClient} from '@/lib/actions';
+import {formatBirthday} from '@/lib/birthdays';
 import type {MockClient, MockBooking, MockResource} from '@/lib/mock-data';
 import {TIMEZONE} from '@/lib/time';
 import {fmtTime} from '@/lib/calendar';
@@ -45,6 +46,9 @@ export default function ClientCard({
         <div>
           <h1 className="text-xl font-semibold tracking-tight">{client.name}</h1>
           <div className="mt-1 text-sm text-muted">{client.phone}</div>
+          {client.dateOfBirth && (
+            <div className="mt-1 text-sm text-muted">🎂 {formatBirthday(client.dateOfBirth, locale)}</div>
+          )}
           {client.note && <div className="mt-2 text-sm">{client.note}</div>}
           <div className="mt-2 flex flex-wrap gap-1">
             {(client.tags ?? []).map((tag) => (

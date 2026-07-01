@@ -123,6 +123,7 @@ async function main() {
         phone: c.phone,
         note: c.note ?? null,
         tags: c.tags ?? [],
+        dateOfBirth: c.dateOfBirth ?? null,
       },
     });
   }

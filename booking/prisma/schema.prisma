@@ -126,12 +126,13 @@ model ServiceAddon {
 // ───────────────────────── Client — клиент (§5.4) ──────────────────────
 
 model Client {
-  id        String   @id @default(cuid())
-  name      String
-  phone     String   @unique
-  note      String?
-  tags      String[] @default([])
-  createdAt DateTime @default(now())
+  id          String    @id @default(cuid())
+  name        String
+  phone       String    @unique
+  note        String?
+  tags        String[]  @default([])
+  dateOfBirth DateTime? @db.Date // день рождения (только дата, без времени)
+  createdAt   DateTime  @default(now())
 
   bookings Booking[]
 }

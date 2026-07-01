@@ -3,6 +3,7 @@
 import {useState} from 'react';
 import {useTranslations} from 'next-intl';
 import {saveClient} from '@/lib/actions';
+import {toInputValue, parseInputDate} from '@/lib/birthdays';
 import type {MockClient} from '@/lib/mock-data';
 
 export default function ClientDialog({
@@ -18,6 +19,7 @@ export default function ClientDialog({
   const [phone, setPhone] = useState(client?.phone ?? '');
   const [note, setNote] = useState(client?.note ?? '');
   const [tags, setTags] = useState((client?.tags ?? []).join(', '));
+  const [dob, setDob] = useState(client?.dateOfBirth ? toInputValue(client.dateOfBirth) : '');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -30,6 +32,7 @@ export default function ClientDialog({
       phone: phone.trim(),
       note: note.trim() || undefined,
       tags: tags.split(',').map((s) => s.trim()).filter(Boolean),
+      dateOfBirth: dob ? parseInputDate(dob) : undefined,
     });
     setSaving(false);
     if (!res.ok) {
@@ -67,7 +70,11 @@ export default function ClientDialog({
             {t('tags')}
             <input className={field} value={tags} onChange={(e) => setTags(e.target.value)} placeholder="VIP, постоянный" />
           </label>
-          {error && <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950/40">{error}</div>}
+          <label className={label}>
+            {t('dateOfBirth')}
+            <input type="date" className={field} value={dob} onChange={(e) => setDob(e.target.value)} />
+          </label>
+          {error &&<div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950/40">{error}</div>}
         </div>
         <div className="mt-4 flex justify-end gap-2">
           <button onClick={onClose} className="rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-subtle">
