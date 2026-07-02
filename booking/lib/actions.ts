@@ -10,7 +10,7 @@ import {currentUser, requireAdmin} from './auth-helpers';
 import {
   createBooking, updateBooking, cancelBooking, BookingError, type BookingInput,
 } from './bookings';
-import {toClient, toResource, toAddon, toUser, toWaiter} from './queries';
+import {toClient, toResource, toAddon, toUser} from './queries';
 import type {MockResource, MockAddon} from './mock-data';
 import {SETTINGS_ID, type AppSettings} from './settings';
 
@@ -233,47 +233,6 @@ export async function resetPasswordAction(id: string, newPassword: string) {
   if (password.length < MIN_PASSWORD) return {ok: false as const, error: 'WEAK_PASSWORD' as const};
   const passwordHash = await bcrypt.hash(password, 10);
   await prisma.user.update({where: {id}, data: {passwordHash}});
-  return {ok: true as const};
-}
-
-// ───────────────────────── Официанты (справочник) — ADMIN ─────────────
-
-export async function saveWaiter(input: {
-  id?: string; name: string; isActive: boolean; sortOrder: number;
-}) {
-  await requireAdmin();
-  // Валидация на сервере (клиентский disabled — не барьер): имя обязательно, разумная длина.
-  const name = (input.name ?? '').trim();
-  if (name.length < 1 || name.length > 100) {
-    return {ok: false as const, error: 'INVALID_NAME' as const};
-  }
-  const data = {
-    name,
-    isActive: input.isActive,
-    sortOrder: Number.isFinite(input.sortOrder) ? Math.round(input.sortOrder) : 0,
-  };
-  const w = input.id
-    ? await prisma.waiter.update({where: {id: input.id}, data})
-    : await prisma.waiter.create({data});
-  refresh();
-  return {ok: true as const, waiter: toWaiter(w)};
-}
-
-export async function setWaiterActiveAction(id: string, isActive: boolean) {
-  await requireAdmin();
-  await prisma.waiter.update({where: {id}, data: {isActive}});
-  refresh();
-  return {ok: true as const};
-}
-
-export async function removeWaiter(id: string) {
-  await requireAdmin();
-  // Нельзя удалять официанта, если он закреплён за бронями — только деактивировать
-  // (иначе потеряем имя в истории). Аналогично объектам (FR-RES-5).
-  const used = await prisma.booking.count({where: {waiterId: id}});
-  if (used > 0) return {ok: false as const, error: 'WAITER_IN_USE' as const};
-  await prisma.waiter.delete({where: {id}});
-  refresh();
   return {ok: true as const};
 }
 

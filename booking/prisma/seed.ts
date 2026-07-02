@@ -10,7 +10,6 @@ import {
   MOCK_RESOURCES,
   MOCK_ADDONS,
   MOCK_USERS,
-  MOCK_WAITERS,
   MOCK_CLIENTS,
   MOCK_BOOKINGS,
 } from '../lib/mock-data';
@@ -27,7 +26,6 @@ async function main() {
   // Идемпотентность: чистим в порядке зависимостей (дочерние → родительские).
   await prisma.bookingAddon.deleteMany();
   await prisma.booking.deleteMany();
-  await prisma.waiter.deleteMany();
   await prisma.serviceAddon.deleteMany();
   await prisma.client.deleteMany();
   await prisma.resource.deleteMany();
@@ -107,13 +105,6 @@ async function main() {
     });
   }
 
-  // ───────────────── Официанты (справочник) ──────────────────────────
-  for (const w of MOCK_WAITERS) {
-    await prisma.waiter.create({
-      data: {id: w.id, name: w.name, isActive: w.isActive, sortOrder: w.sortOrder},
-    });
-  }
-
   // ───────────────── Клиенты ──────────────────────────────────────────
   for (const c of MOCK_CLIENTS) {
     await prisma.client.create({
@@ -148,7 +139,6 @@ async function main() {
         discountType: b.discountType,
         discountValue: b.discountValue,
         comment: b.comment ?? null,
-        waiterId: b.waiterId ?? null,
         createdById: adminId,
         addons: {
           create: b.addons.map((ba) => ({
@@ -165,7 +155,6 @@ async function main() {
     users: MOCK_USERS.length,
     resources: MOCK_RESOURCES.length,
     addons: MOCK_ADDONS.length,
-    waiters: MOCK_WAITERS.length,
     clients: MOCK_CLIENTS.length,
     bookings: MOCK_BOOKINGS.length,
   };

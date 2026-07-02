@@ -93,9 +93,7 @@ export default function ClientCard({
                 <div className="flex flex-1 items-center gap-1.5 truncate">
                   <span className="h-2 w-2 shrink-0 rounded-full" style={{backgroundColor: r?.color}} />
                   <span className="truncate font-medium">{locale === 'kk' ? r?.nameKk : r?.nameRu}</span>
-                  <span className="text-xs text-muted">· {tt(b.tariff)}</span>
-                  {b.waiterName && <span className="shrink-0 text-xs text-muted">· {b.waiterName}</span>}
-                </div>
+                  <span className="text-xs text-muted">· {tt(b.tariff)}</span>                </div>
                 <StatusBadge status={b.status} />
                 {b.discountType !== 'NONE' && b.discountValue > 0 && (
                   <span

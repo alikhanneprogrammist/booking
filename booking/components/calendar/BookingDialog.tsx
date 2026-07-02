@@ -8,7 +8,7 @@ import {durationHours} from '@/lib/time';
 import {toLocalInput, fromLocalInput, rangesOverlap} from '@/lib/calendar';
 import {saveBooking, cancelBookingAction, saveClient} from '@/lib/actions';
 import type {
-  MockResource, MockAddon, MockClient, MockWaiter, MockBooking, Tariff, BookingStatus, BookingSource, DiscountType,
+  MockResource, MockAddon, MockClient, MockBooking, Tariff, BookingStatus, BookingSource, DiscountType,
 } from '@/lib/mock-data';
 
 const TARIFFS: Tariff[] = ['HOURLY', 'HALF_DAY', 'FULL_DAY', 'WEEKEND', 'CUSTOM'];
@@ -16,8 +16,16 @@ const DISCOUNT_TYPES: DiscountType[] = ['NONE', 'PERCENT', 'AMOUNT'];
 const STATUSES: BookingStatus[] = ['NEW', 'CONFIRMED', 'PREPAID', 'COMPLETED', 'CANCELLED', 'NO_SHOW'];
 const SOURCES: BookingSource[] = ['ADMIN', 'PHONE', 'WHATSAPP', 'INSTAGRAM', 'WIDGET'];
 
+/** Следующий календарный день для строки 'YYYY-MM-DD'. */
+function nextDayStr(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m - 1, d + 1);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`;
+}
+
 export default function BookingDialog({
-  mode, booking, prefill, resources, addons, clients, waiters, bookings, locale,
+  mode, booking, prefill, resources, addons, clients, bookings, locale,
   onSaved, onClose,
 }: {
   mode: 'create' | 'edit';
@@ -26,7 +34,6 @@ export default function BookingDialog({
   resources: MockResource[];
   addons: MockAddon[];
   clients: MockClient[];
-  waiters: MockWaiter[];
   bookings: MockBooking[];
   locale: string;
   onSaved: () => void;
@@ -46,13 +53,14 @@ export default function BookingDialog({
 
   const [resourceId, setResourceId] = useState(init?.resourceId ?? prefill?.resourceId ?? resources[0].id);
   const [clientId, setClientId] = useState(init?.clientId ?? clients[0]?.id ?? '');
-  const [startStr, setStartStr] = useState(toLocalInput(defaultStart));
-  const [endStr, setEndStr] = useState(toLocalInput(defaultEnd));
+  // Дата брони + время начала/конца (набор с клавиатуры). Конец ≤ начала → следующий день.
+  const [date, setDate] = useState(() => toLocalInput(defaultStart).slice(0, 10));
+  const [startTime, setStartTime] = useState(() => toLocalInput(defaultStart).slice(11, 16));
+  const [endTime, setEndTime] = useState(() => toLocalInput(defaultEnd).slice(11, 16));
   const [guests, setGuests] = useState(init?.guests ?? 2);
   const [tariff, setTariff] = useState<Tariff>(init?.tariff ?? 'HOURLY');
   const [status, setStatus] = useState<BookingStatus>(init?.status ?? 'NEW');
   const [source, setSource] = useState<BookingSource>(init?.source ?? 'ADMIN');
-  const [waiterId, setWaiterId] = useState(init?.waiterId ?? '');
   const [qty, setQty] = useState<Record<string, number>>(() => {
     const m: Record<string, number> = {};
     init?.addons.forEach((a) => (m[a.addonId] = a.qty));
@@ -90,8 +98,9 @@ export default function BookingDialog({
   }
 
   const resource = resources.find((r) => r.id === resourceId)!;
-  const startAt = fromLocalInput(startStr);
-  const endAt = fromLocalInput(endStr);
+  const overnight = endTime <= startTime; // конец не позже начала → бронь через полночь
+  const startAt = fromLocalInput(`${date}T${startTime}`);
+  const endAt = fromLocalInput(`${overnight ? nextDayStr(date) : date}T${endTime}`);
 
   const price = useMemo(() => {
     const lines = addons
@@ -102,7 +111,7 @@ export default function BookingDialog({
       value: Number(discountValue) || 0,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resourceId, tariff, startStr, endStr, JSON.stringify(qty), guests, discountType, discountValue]);
+  }, [resourceId, tariff, date, startTime, endTime, JSON.stringify(qty), guests, discountType, discountValue]);
 
   useEffect(() => {
     if (!totalTouched) setTotal(String(price.total));
@@ -147,7 +156,6 @@ export default function BookingDialog({
       discountType,
       discountValue: discountType === 'NONE' ? 0 : Number(discountValue) || 0,
       comment: comment || undefined,
-      waiterId: waiterId || undefined,
       addons: addons
         .filter((a) => (qty[a.id] ?? 0) > 0)
         .map((a) => ({addonId: a.id, qty: qty[a.id], priceAtBooking: a.price})),
@@ -157,7 +165,6 @@ export default function BookingDialog({
       if (res.error === 'OVERLAP') return setError(tb('occupied'));
       if (res.error === 'INVALID_RANGE') return setError(tb('invalidRange'));
       if (res.error === 'MIN_DURATION') return setError(tb('minDuration', {h: resource.minHours}));
-      if (res.error === 'WAITER_NOT_FOUND') return setError(tb('waiterNotFound'));
       return setError(('message' in res && res.message) ? res.message : String(res.error));
     }
     onSaved();
@@ -248,13 +255,19 @@ export default function BookingDialog({
             )}
           </div>
           <label className={labelCls}>
-            {tb('start')}
-            <input type="datetime-local" className={fieldCls} value={startStr} onChange={(e) => setStartStr(e.target.value)} />
+            {tb('date')}
+            <input type="date" className={fieldCls} value={date} onChange={(e) => setDate(e.target.value)} />
           </label>
-          <label className={labelCls}>
-            {tb('end')}
-            <input type="datetime-local" className={fieldCls} value={endStr} onChange={(e) => setEndStr(e.target.value)} />
-          </label>
+          <div className={labelCls}>
+            <span className="flex items-center justify-between">
+              <span>{tb('start')} / {tb('end')}</span>
+              {overnight && <span className="text-[10px] normal-case text-amber-600">{tb('nextDayHint')}</span>}
+            </span>
+            <div className="flex gap-1.5">
+              <input type="time" className={`${fieldCls} flex-1`} value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+              <input type="time" className={`${fieldCls} flex-1`} value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+            </div>
+          </div>
           <label className={labelCls}>
             {tb('tariff')}
             <select className={fieldCls} value={tariff} onChange={(e) => setTariff(e.target.value as Tariff)}>
@@ -275,19 +288,6 @@ export default function BookingDialog({
             {tb('source')}
             <select className={fieldCls} value={source} onChange={(e) => setSource(e.target.value as BookingSource)}>
               {SOURCES.map((x) => <option key={x} value={x}>{tsrc(x)}</option>)}
-            </select>
-          </label>
-          <label className={labelCls}>
-            {tb('waiter')}
-            <select className={fieldCls} value={waiterId} onChange={(e) => setWaiterId(e.target.value)}>
-              <option value="">{tb('waiterNone')}</option>
-              {waiters
-                .filter((w) => w.isActive || w.id === init?.waiterId)
-                .map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name}{!w.isActive ? ` (${tb('waiterInactive')})` : ''}
-                  </option>
-                ))}
             </select>
           </label>
         </div>

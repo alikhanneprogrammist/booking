@@ -1,8 +1,9 @@
 'use client';
 
+import {useEffect, useRef} from 'react';
 import {useTranslations} from 'next-intl';
 import {
-  HOUR_PX, HOURS, fmtHour, minutesFromDayStart, addDays,
+  HOUR_PX, fmtHour, minutesFromDayStart, addDays,
 } from '@/lib/calendar';
 import type {MockResource, MockBooking, MockClient} from '@/lib/mock-data';
 import BookingBlock from './BookingBlock';
@@ -22,9 +23,22 @@ export default function ResourceTimeline({
   onBookingClick: (b: MockBooking) => void;
 }) {
   const tg = useTranslations('groups');
+  const tc = useTranslations('calendar');
   const dayEnd = addDays(dayStart, 1);
   const showNow = now >= dayStart && now < dayEnd;
   const nowTop = (minutesFromDayStart(now, dayStart) / 60) * HOUR_PX;
+
+  // Брони, попадающие в этот день (вкл. ночные, стартующие сегодня, и «хвосты» с прошлого дня).
+  const dayBookings = bookings.filter((b) => b.startAt < dayEnd && b.endAt > dayStart);
+
+  // Сетка 24/7: продлеваем за полночь, если ночная бронь тянется в утро след. дня.
+  const maxEndHours = dayBookings.reduce(
+    (m, b) => Math.max(m, minutesFromDayStart(b.endAt, dayStart) / 60),
+    24,
+  );
+  const gridHours = Math.min(32, Math.max(24, Math.ceil(maxEndHours)));
+  const gridEnd = new Date(dayStart.getTime() + gridHours * 3600_000);
+  const hours = Array.from({length: gridHours}, (_, i) => i);
 
   const name = (r: MockResource) => (locale === 'kk' ? r.nameKk : r.nameRu);
   const groups = KINDS.map((k) => ({k, items: resources.filter((r) => r.kind === k)})).filter((g) => g.items.length);
@@ -35,6 +49,15 @@ export default function ResourceTimeline({
     const snapped = Math.max(0, Math.floor(minutes / 30) * 30);
     onSlotClick(resourceId, new Date(dayStart.getTime() + snapped * 60000));
   }
+
+  // Авто-скролл при смене дня: к «сейчас» (если сегодня) или к 10:00 — чтобы не упираться в 00:00.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTop = showNow ? Math.max(0, nowTop - 120) : 10 * HOUR_PX;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dayStart]);
 
   return (
     <div className="flex h-full flex-col">
@@ -64,58 +87,66 @@ export default function ResourceTimeline({
       </div>
 
       {/* Тело: сетка часов + колонки */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="flex" style={{height: 24 * HOUR_PX}}>
-          {/* Часовая шкала */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto">
+        <div className="flex" style={{height: gridHours * HOUR_PX}}>
+          {/* Часовая шкала (часы ≥24 — следующий день) */}
           <div className="relative w-14 shrink-0">
-            {HOURS.map((h) => (
-              <div key={h} className="absolute right-1 -translate-y-1/2 text-[10px] text-muted" style={{top: h * HOUR_PX}}>
-                {fmtHour(h)}
+            {hours.map((h) => (
+              <div
+                key={h}
+                className={`absolute right-1 -translate-y-1/2 text-[10px] ${h >= 24 ? 'italic text-muted/60' : 'text-muted'}`}
+                style={{top: h * HOUR_PX}}
+              >
+                {fmtHour(h % 24)}
               </div>
             ))}
+            {gridHours > 24 && (
+              <div className="absolute right-1 text-[9px] font-medium text-muted/70" style={{top: 24 * HOUR_PX + 2}}>
+                {tc('nextDay')}
+              </div>
+            )}
           </div>
 
-          {resources.map((r) => {
-            const dayBookings = bookings.filter(
-              (b) => b.startAt < dayEnd && b.endAt > dayStart,
-            );
-            return (
-              <div
-                key={r.id}
-                onClick={(e) => handleColumnClick(r.id, e)}
-                className="relative flex-1 cursor-pointer border-l border-border"
-              >
-                {/* Часовые линии */}
-                {HOURS.map((h) => (
-                  <div key={h} className="absolute left-0 right-0 border-t border-border/60" style={{top: h * HOUR_PX}} />
-                ))}
-                {/* Линия «сейчас» */}
-                {showNow && (
-                  <div className="absolute left-0 right-0 z-10 border-t-2 border-red-500" style={{top: nowTop}}>
-                    <span className="absolute -top-1 -left-1 h-2 w-2 rounded-full bg-red-500" />
-                  </div>
-                )}
-                {/* Брони этого объекта */}
-                {dayBookings.filter((b) => b.resourceId === r.id).map((b) => {
-                  const vStart = b.startAt < dayStart ? dayStart : b.startAt;
-                  const vEnd = b.endAt > dayEnd ? dayEnd : b.endAt;
-                  const top = (minutesFromDayStart(vStart, dayStart) / 60) * HOUR_PX;
-                  const height = ((vEnd.getTime() - vStart.getTime()) / 3600_000) * HOUR_PX;
-                  return (
-                    <BookingBlock
-                      key={b.id}
-                      booking={b}
-                      resource={r}
-                      client={clients.find((c) => c.id === b.clientId)}
-                      locale={locale}
-                      style={{top, height: Math.max(height, 18), left: 4, right: 4}}
-                      onClick={() => onBookingClick(b)}
-                    />
-                  );
-                })}
-              </div>
-            );
-          })}
+          {resources.map((r) => (
+            <div
+              key={r.id}
+              onClick={(e) => handleColumnClick(r.id, e)}
+              className="relative flex-1 cursor-pointer border-l border-border"
+            >
+              {/* Часовые линии (жирнее — граница полуночи 24:00) */}
+              {hours.map((h) => (
+                <div
+                  key={h}
+                  className={`absolute left-0 right-0 border-t ${h === 24 ? 'border-foreground/40' : 'border-border/60'}`}
+                  style={{top: h * HOUR_PX}}
+                />
+              ))}
+              {/* Линия «сейчас» */}
+              {showNow && (
+                <div className="absolute left-0 right-0 z-10 border-t-2 border-red-500" style={{top: nowTop}}>
+                  <span className="absolute -top-1 -left-1 h-2 w-2 rounded-full bg-red-500" />
+                </div>
+              )}
+              {/* Брони этого объекта */}
+              {dayBookings.filter((b) => b.resourceId === r.id).map((b) => {
+                const vStart = b.startAt < dayStart ? dayStart : b.startAt;
+                const vEnd = b.endAt > gridEnd ? gridEnd : b.endAt;
+                const top = (minutesFromDayStart(vStart, dayStart) / 60) * HOUR_PX;
+                const height = ((vEnd.getTime() - vStart.getTime()) / 3600_000) * HOUR_PX;
+                return (
+                  <BookingBlock
+                    key={b.id}
+                    booking={b}
+                    resource={r}
+                    client={clients.find((c) => c.id === b.clientId)}
+                    locale={locale}
+                    style={{top, height: Math.max(height, 18), left: 4, right: 4}}
+                    onClick={() => onBookingClick(b)}
+                  />
+                );
+              })}
+            </div>
+          ))}
         </div>
       </div>
     </div>

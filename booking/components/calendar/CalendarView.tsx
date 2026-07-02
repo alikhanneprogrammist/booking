@@ -5,7 +5,7 @@ import {useLocale, useTranslations} from 'next-intl';
 import {useRouter} from '@/i18n/navigation';
 import {TIMEZONE} from '@/lib/time';
 import {almatyDayStart, addDays, weekStart, fmtDayHeader, fmtDayNum} from '@/lib/calendar';
-import type {MockResource, MockAddon, MockClient, MockWaiter, MockBooking} from '@/lib/mock-data';
+import type {MockResource, MockAddon, MockClient, MockBooking} from '@/lib/mock-data';
 import ResourceTimeline from './ResourceTimeline';
 import WeekTimeline from './WeekTimeline';
 import BookingDialog from './BookingDialog';
@@ -16,12 +16,11 @@ type Dialog =
   | {open: true; mode: 'edit'; booking: MockBooking};
 
 export default function CalendarView({
-  resources, addons, clients, waiters, bookings,
+  resources, addons, clients, bookings,
 }: {
   resources: MockResource[];
   addons: MockAddon[];
   clients: MockClient[];
-  waiters: MockWaiter[];
   bookings: MockBooking[];
 }) {
   const locale = useLocale();
@@ -132,7 +131,6 @@ export default function CalendarView({
           resources={resources}
           addons={addons}
           clients={clients}
-          waiters={waiters}
           bookings={bookings}
           locale={locale}
           onSaved={saved}

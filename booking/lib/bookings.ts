@@ -11,11 +11,7 @@ export type BookingErrorCode =
   | 'INVALID_RANGE'
   | 'MIN_DURATION'
   | 'OVERLAP'
-  | 'RESOURCE_NOT_FOUND'
-  | 'WAITER_NOT_FOUND';
-
-/** Сообщение для несуществующего/удалённого официанта (текст для kk берётся в UI по коду). */
-const WAITER_NOT_FOUND_MSG = 'Выбранный официант не найден — обновите страницу';
+  | 'RESOURCE_NOT_FOUND';
 
 export class BookingError extends Error {
   constructor(
@@ -42,19 +38,6 @@ function isOverlapDbError(e: unknown): boolean {
     msg.includes('exclusion constraint') ||
     msg.includes('23P01')
   );
-}
-
-/** Нарушение FK Booking.waiterId (P2003) — официант удалён в гонке между загрузкой и сохранением. */
-function isWaiterFkError(e: unknown): boolean {
-  if (!(e instanceof Prisma.PrismaClientKnownRequestError) || e.code !== 'P2003') return false;
-  return `${e.message} ${JSON.stringify(e.meta ?? {})}`.toLowerCase().includes('waiter');
-}
-
-/** Бросает WAITER_NOT_FOUND, если задан waiterId несуществующего официанта (детерминированно, до вставки). */
-async function assertWaiterExists(waiterId?: string) {
-  if (!waiterId) return;
-  const waiter = await prisma.waiter.findUnique({where: {id: waiterId}});
-  if (!waiter) throw new BookingError('WAITER_NOT_FOUND', WAITER_NOT_FOUND_MSG);
 }
 
 // ───────────────────────── Валидация (Zod) ─────────────────────────────
@@ -87,8 +70,6 @@ export const bookingInput = z.object({
   discountType: z.enum(['NONE', 'PERCENT', 'AMOUNT']).default('NONE'),
   discountValue: z.number().nonnegative().default(0),
   comment: z.string().optional(),
-  // Назначенный официант (необязателен). '' → не назначен (null).
-  waiterId: z.string().optional(),
   addons: z.array(ADDON).default([]),
 });
 
@@ -173,7 +154,6 @@ export async function createBooking(raw: BookingInput, createdById: string) {
   pr.minHours = Math.max(pr.minHours, settings.minBookingHours);
 
   await validateRange(pr, data.tariff, data.startAt, data.endAt);
-  await assertWaiterExists(data.waiterId);
 
   // Барьер приложения.
   const conflict = await findOverlap(data.resourceId, data.startAt, data.endAt);
@@ -219,7 +199,6 @@ export async function createBooking(raw: BookingInput, createdById: string) {
           discountType: data.discountType,
           discountValue: data.discountValue,
           comment: data.comment,
-          waiterId: data.waiterId || null,
           createdById,
           addons: {
             create: data.addons.map((a) => ({
@@ -238,7 +217,6 @@ export async function createBooking(raw: BookingInput, createdById: string) {
     if (isOverlapDbError(e)) {
       throw new BookingError('OVERLAP', 'Объект занят в это время');
     }
-    if (isWaiterFkError(e)) throw new BookingError('WAITER_NOT_FOUND', WAITER_NOT_FOUND_MSG);
     throw e;
   }
 }
@@ -261,7 +239,6 @@ export async function updateBooking(id: string, raw: Partial<BookingInput>) {
   pr.minHours = Math.max(pr.minHours, settings.minBookingHours);
 
   await validateRange(pr, tariff, startAt, endAt);
-  await assertWaiterExists(raw.waiterId);
 
   const conflict = await findOverlap(resourceId, startAt, endAt, id);
   if (conflict) {
@@ -292,7 +269,6 @@ export async function updateBooking(id: string, raw: Partial<BookingInput>) {
           ...(raw.discountType != null ? {discountType: raw.discountType} : {}),
           ...(raw.discountValue != null ? {discountValue: raw.discountValue} : {}),
           ...(raw.comment !== undefined ? {comment: raw.comment} : {}),
-          ...(raw.waiterId !== undefined ? {waiterId: raw.waiterId || null} : {}),
           ...(raw.addons !== undefined
             ? {
                 addons: {
@@ -309,7 +285,6 @@ export async function updateBooking(id: string, raw: Partial<BookingInput>) {
     });
   } catch (e) {
     if (isOverlapDbError(e)) throw new BookingError('OVERLAP', 'Объект занят в это время');
-    if (isWaiterFkError(e)) throw new BookingError('WAITER_NOT_FOUND', WAITER_NOT_FOUND_MSG);
     throw e;
   }
 }

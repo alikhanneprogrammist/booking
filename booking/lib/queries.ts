@@ -1,6 +1,6 @@
 import {prisma} from './db';
 import type {
-  MockResource, MockAddon, MockClient, MockUser, MockWaiter, MockBooking,
+  MockResource, MockAddon, MockClient, MockUser, MockBooking,
 } from './mock-data';
 import {DEFAULT_SETTINGS, SETTINGS_ID, type AppSettings} from './settings';
 
@@ -17,7 +17,6 @@ type ResourceRow = Awaited<ReturnType<typeof prisma.resource.findMany>>[number];
 type AddonRow = Awaited<ReturnType<typeof prisma.serviceAddon.findMany>>[number];
 type ClientRow = Awaited<ReturnType<typeof prisma.client.findMany>>[number];
 type UserRow = Awaited<ReturnType<typeof prisma.user.findMany>>[number];
-type WaiterRow = Awaited<ReturnType<typeof prisma.waiter.findMany>>[number];
 
 export function toResource(r: ResourceRow): MockResource {
   return {
@@ -66,12 +65,8 @@ export function toUser(u: UserRow): MockUser {
   };
 }
 
-export function toWaiter(w: WaiterRow): MockWaiter {
-  return {id: w.id, name: w.name, isActive: w.isActive, sortOrder: w.sortOrder};
-}
-
 type BookingRow = Awaited<
-  ReturnType<typeof prisma.booking.findMany<{include: {addons: true; waiter: true}}>>
+  ReturnType<typeof prisma.booking.findMany<{include: {addons: true}}>>
 >[number];
 
 export function toBooking(b: BookingRow): MockBooking {
@@ -91,8 +86,6 @@ export function toBooking(b: BookingRow): MockBooking {
     discountType: b.discountType,
     discountValue: num(b.discountValue),
     comment: b.comment ?? undefined,
-    waiterId: b.waiterId ?? undefined,
-    waiterName: b.waiter?.name ?? undefined,
     addons: b.addons.map((a) => ({
       addonId: a.addonId,
       qty: a.qty,
@@ -128,15 +121,10 @@ export async function getUsers(): Promise<MockUser[]> {
   return rows.map(toUser);
 }
 
-export async function getWaiters(): Promise<MockWaiter[]> {
-  const rows = await prisma.waiter.findMany({orderBy: [{sortOrder: 'asc'}, {name: 'asc'}]});
-  return rows.map(toWaiter);
-}
-
 /** Все брони (единый венчур, объём небольшой; фильтрация по дате — на клиенте). */
 export async function getBookings(): Promise<MockBooking[]> {
   const rows = await prisma.booking.findMany({
-    include: {addons: true, waiter: true},
+    include: {addons: true},
     orderBy: {startAt: 'asc'},
   });
   return rows.map(toBooking);
@@ -175,7 +163,7 @@ export async function getSettings(): Promise<AppSettings> {
 export async function getClientBookings(clientId: string): Promise<MockBooking[]> {
   const rows = await prisma.booking.findMany({
     where: {clientId},
-    include: {addons: true, waiter: true},
+    include: {addons: true},
     orderBy: {startAt: 'desc'},
   });
   return rows.map(toBooking);
