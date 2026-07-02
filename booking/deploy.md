@@ -227,15 +227,22 @@ docker compose exec db psql -U office2020 -d office2020 \
 
 ## 7. Бэкап и восстановление
 
+Готовый скрипт — `scripts/backup-db.sh`: pg_dump сжатого custom-формата,
+креды из `.env`, дампы в `~/backups/office2020/`, ротация 14 дней.
+
 ```bash
-# Бэкап
-docker compose exec db pg_dump -U office2020 -d office2020 -Fc > backup_$(date +%F).dump
+# Ручной бэкап
+bash scripts/backup-db.sh
+
+# Ежедневно в 04:30 (без sudo, пользовательский crontab)
+(crontab -l 2>/dev/null; echo '30 4 * * * /bin/bash /ПУТЬ/К/booking/scripts/backup-db.sh >> $HOME/backups/office2020/backup.log 2>&1') | crontab -
 
 # Восстановление в чистую БД
-cat backup.dump | docker compose exec -T db pg_restore -U office2020 -d office2020 --clean
+cat ~/backups/office2020/booking_ДАТА.dump | docker compose exec -T db pg_restore -U office2020 -d office2020 --clean
 ```
 
-Регулярно бэкапьте том `pgdata` или делайте `pg_dump` по расписанию (cron).
+ВАЖНО: локальный дамп не спасает при смерти диска — периодически копируйте
+`~/backups/office2020/` на другой носитель или сервер (rsync/scp).
 
 ---
 
