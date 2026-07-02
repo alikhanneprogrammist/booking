@@ -47,6 +47,11 @@ export default function BookingDialog({
 
   const [resourceId, setResourceId] = useState(init?.resourceId ?? prefill?.resourceId ?? resources[0].id);
   const [clientId, setClientId] = useState(init?.clientId ?? clients[0]?.id ?? '');
+  // Комбобокс клиента: поиск по имени/телефону вместо <select> (клиентов станет много).
+  const [clientQuery, setClientQuery] = useState(
+    () => clients.find((c) => c.id === (init?.clientId ?? clients[0]?.id))?.name ?? '',
+  );
+  const [clientOpen, setClientOpen] = useState(false);
   // Дата брони + время начала/конца (набор с клавиатуры). Конец ≤ начала → следующий день.
   const [date, setDate] = useState(() => toLocalInput(defaultStart).slice(0, 10));
   const [startTime, setStartTime] = useState(() => toLocalInput(defaultStart).slice(11, 16));
@@ -91,11 +96,32 @@ export default function BookingDialog({
       return;
     }
     setClientId(res.client.id);
+    setClientQuery(res.client.name);
     setNewOpen(false);
     setNName('');
     setNPhone('');
     // Подтягиваем нового клиента в список (перечитываем серверные данные).
     router.refresh();
+  }
+
+  // Подстрочный поиск клиента: по имени и по цифрам телефона; показываем первые 8.
+  const clientMatches = useMemo(() => {
+    const q = clientQuery.trim().toLowerCase();
+    const qDigits = q.replace(/\D/g, '');
+    const list = !q
+      ? clients
+      : clients.filter(
+          (c) =>
+            c.name.toLowerCase().includes(q) ||
+            (qDigits !== '' && c.phone.replace(/\D/g, '').includes(qDigits)),
+        );
+    return list.slice(0, 8);
+  }, [clients, clientQuery]);
+
+  function pickClient(c: MockClient) {
+    setClientId(c.id);
+    setClientQuery(c.name);
+    setClientOpen(false);
   }
 
   const resource = resources.find((r) => r.id === resourceId)!;
@@ -159,7 +185,7 @@ export default function BookingDialog({
         rangesOverlap(b.startAt, b.endAt, startAt, endAt),
     );
     if (conflict) return setError(tb('occupied'));
-    if (!clientId) return setError(tb('client'));
+    if (!clientId) return setError(tb('clientRequired'));
 
     setSaving(true);
     try {
@@ -268,9 +294,41 @@ export default function BookingDialog({
                 </button>
               </div>
             ) : (
-              <select className={fieldCls} value={clientId} onChange={(e) => setClientId(e.target.value)}>
-                {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+              <div className="relative">
+                <input
+                  className={`${fieldCls} w-full`}
+                  value={clientQuery}
+                  placeholder={tb('clientSearch')}
+                  onChange={(e) => {
+                    setClientQuery(e.target.value);
+                    setClientId(''); // выбор обязателен явно — сброс до клика по подсказке
+                    setClientOpen(true);
+                  }}
+                  onFocus={() => setClientOpen(true)}
+                  onBlur={() => setClientOpen(false)}
+                />
+                {clientOpen && clientMatches.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-44 overflow-y-auto rounded-md border border-border bg-card shadow-lg">
+                    {clientMatches.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        // onMouseDown: срабатывает ДО blur инпута, иначе список закроется раньше клика
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          pickClient(c);
+                        }}
+                        className={`flex w-full items-center justify-between px-2.5 py-1.5 text-left text-sm hover:bg-subtle ${
+                          c.id === clientId ? 'bg-subtle' : ''
+                        }`}
+                      >
+                        <span className="truncate">{c.name}</span>
+                        <span className="ml-2 shrink-0 text-xs text-muted">{c.phone}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </div>
           <label className={labelCls}>

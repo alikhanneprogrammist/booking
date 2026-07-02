@@ -192,6 +192,8 @@
     "editTitle": "Бронь",
     "resource": "Объект",
     "client": "Клиент",
+    "clientSearch": "Имя или телефон…",
+    "clientRequired": "Выберите клиента из списка",
     "date": "Дата",
     "start": "Начало",
     "end": "Конец",
