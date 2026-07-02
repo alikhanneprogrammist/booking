@@ -11,6 +11,32 @@ export default function UsersView({users}: {users: MockUser[]}) {
   const t = useTranslations('users');
   const router = useRouter();
   const [dialog, setDialog] = useState<{open: boolean; user?: MockUser}>({open: false});
+  // Мини-диалог сброса пароля (вместо window.prompt/alert).
+  const [resetFor, setResetFor] = useState<MockUser | null>(null);
+  const [newPass, setNewPass] = useState('');
+  const [resetErr, setResetErr] = useState<string | null>(null);
+  const [resetDone, setResetDone] = useState(false);
+  const [resetSaving, setResetSaving] = useState(false);
+
+  function openReset(u: MockUser) {
+    setResetFor(u);
+    setNewPass('');
+    setResetErr(null);
+    setResetDone(false);
+  }
+
+  async function submitReset() {
+    if (!resetFor) return;
+    setResetErr(null);
+    setResetSaving(true);
+    const res = await resetPasswordAction(resetFor.id, newPass);
+    setResetSaving(false);
+    if (!res.ok) {
+      setResetErr(t('weakPassword'));
+      return;
+    }
+    setResetDone(true);
+  }
 
   const btn = 'text-xs font-medium text-muted hover:text-foreground';
 
@@ -58,15 +84,7 @@ export default function UsersView({users}: {users: MockUser[]}) {
                   >
                     {u.isActive ? t('deactivate') : t('activate')}
                   </button>
-                  <button
-                    className={`ml-3 ${btn}`}
-                    onClick={async () => {
-                      const np = window.prompt(t('enterNewPassword'));
-                      if (np == null) return; // отмена
-                      const res = await resetPasswordAction(u.id, np);
-                      alert(res.ok ? t('passwordChanged') : t('weakPassword'));
-                    }}
-                  >
+                  <button className={`ml-3 ${btn}`} onClick={() => openReset(u)}>
                     {t('resetPassword')}
                   </button>
                 </td>
@@ -82,6 +100,59 @@ export default function UsersView({users}: {users: MockUser[]}) {
           onClose={() => setDialog({open: false})}
           onSaved={() => router.refresh()}
         />
+      )}
+
+      {/* Сброс пароля (FR-USER-3): админ задаёт новый пароль вручную */}
+      {resetFor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setResetFor(null)}>
+          <div className="w-full max-w-sm rounded-xl border border-border bg-card p-5 shadow-lg" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-base font-semibold tracking-tight">{t('resetPassword')}</h2>
+              <button onClick={() => setResetFor(null)} className="text-muted hover:text-foreground">✕</button>
+            </div>
+            {resetDone ? (
+              <>
+                <p aria-live="polite" className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:bg-emerald-950/40">
+                  {t('passwordChanged')} — {resetFor.name}
+                </p>
+                <div className="mt-4 flex justify-end">
+                  <button onClick={() => setResetFor(null)} className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90">
+                    {t('back')}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <label className="flex flex-col gap-1 text-xs font-medium text-muted">
+                  {t('enterNewPassword')}
+                  <input
+                    className="rounded-md border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus:border-foreground/40"
+                    type="text"
+                    value={newPass}
+                    onChange={(e) => setNewPass(e.target.value)}
+                    autoFocus
+                  />
+                </label>
+                <div className="mt-1 text-[11px] text-muted">{resetFor.name} · {resetFor.phone}</div>
+                {resetErr && (
+                  <div role="alert" className="mt-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950/40">{resetErr}</div>
+                )}
+                <div className="mt-4 flex justify-end gap-2">
+                  <button onClick={() => setResetFor(null)} className="rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-subtle">
+                    {t('back')}
+                  </button>
+                  <button
+                    onClick={submitReset}
+                    disabled={resetSaving || !newPass.trim()}
+                    className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                  >
+                    {t('save')}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

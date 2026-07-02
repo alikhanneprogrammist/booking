@@ -142,6 +142,7 @@ export default function ResourceTimeline({
                     client={clients.find((c) => c.id === b.clientId)}
                     locale={locale}
                     style={{top, height: Math.max(height, 18), left: 4, right: 4}}
+                    clipped={b.endAt > gridEnd}
                     onClick={() => onBookingClick(b)}
                   />
                 );

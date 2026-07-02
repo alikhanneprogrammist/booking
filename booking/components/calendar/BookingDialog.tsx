@@ -403,7 +403,7 @@ export default function BookingDialog({
           <div className="mt-2 text-xs text-amber-600">{price.warnings.join('; ')}</div>
         )}
         {error && (
-          <div className="mt-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950/40">{error}</div>
+          <div role="alert" className="mt-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950/40">{error}</div>
         )}
 
         <div className="mt-4 flex items-center justify-between">

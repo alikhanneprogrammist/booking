@@ -74,7 +74,7 @@ export default function ClientDialog({
             {t('dateOfBirth')}
             <input type="date" className={field} value={dob} onChange={(e) => setDob(e.target.value)} />
           </label>
-          {error &&<div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950/40">{error}</div>}
+          {error && <div role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950/40">{error}</div>}
         </div>
         <div className="mt-4 flex justify-end gap-2">
           <button onClick={onClose} className="rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-subtle">

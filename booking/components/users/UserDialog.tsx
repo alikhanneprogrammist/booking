@@ -22,6 +22,9 @@ export default function UserDialog({
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Сгенерированный временный пароль показываем в самом диалоге (не alert):
+  // его можно скопировать, и он не пропадёт от случайного Enter.
+  const [tempPass, setTempPass] = useState<string | null>(null);
 
   async function save() {
     setError(null);
@@ -36,9 +39,12 @@ export default function UserDialog({
       setError(res.error === 'WEAK_PASSWORD' ? t('weakPassword') : t('duplicatePhone'));
       return;
     }
-    // Новому сотруднику сервер выдаёт временный пароль (FR-USER, §5.8).
-    if (res.tempPassword) alert(t('tempPassword', {p: res.tempPassword}));
     onSaved?.();
+    // Новому сотруднику сервер выдаёт временный пароль (FR-USER, §5.8).
+    if (res.tempPassword) {
+      setTempPass(res.tempPassword);
+      return; // диалог остаётся открытым с паролем
+    }
     onClose();
   }
 
@@ -52,6 +58,22 @@ export default function UserDialog({
           <h2 className="text-base font-semibold tracking-tight">{u ? t('edit') : t('add')}</h2>
           <button onClick={onClose} className="text-muted hover:text-foreground">✕</button>
         </div>
+        {tempPass ? (
+          <>
+            <p aria-live="polite" className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:bg-emerald-950/40">
+              {t('tempPassword', {p: ''})}
+            </p>
+            <div className="mt-2 select-all rounded-md border border-border bg-subtle px-3 py-2 text-center font-mono text-base tracking-wide">
+              {tempPass}
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button onClick={onClose} className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90">
+                {t('back')}
+              </button>
+            </div>
+          </>
+        ) : (
+        <>
         <div className="flex flex-col gap-3">
           <label className={label}>{t('name')}<input className={field} value={name} onChange={(e) => setName(e.target.value)} autoFocus /></label>
           <label className={label}>{t('phone')}<input className={field} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+7 700 000 00 00" /></label>
@@ -71,7 +93,7 @@ export default function UserDialog({
             <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
             {t('active')}
           </label>
-          {error && <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950/40">{error}</div>}
+          {error && <div role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950/40">{error}</div>}
         </div>
         <div className="mt-4 flex justify-end gap-2">
           <button onClick={onClose} className="rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-subtle">{t('back')}</button>
@@ -79,6 +101,8 @@ export default function UserDialog({
             {u ? t('save') : t('create')}
           </button>
         </div>
+        </>
+        )}
       </div>
     </div>
   );

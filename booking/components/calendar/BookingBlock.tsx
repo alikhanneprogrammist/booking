@@ -1,6 +1,7 @@
 'use client';
 
 import type {CSSProperties} from 'react';
+import {useTranslations} from 'next-intl';
 import {fmtTime} from '@/lib/calendar';
 import type {MockBooking, MockResource, MockClient} from '@/lib/mock-data';
 
@@ -12,6 +13,7 @@ export default function BookingBlock({
   locale,
   style,
   showResource = false,
+  clipped = false,
   onClick,
 }: {
   booking: MockBooking;
@@ -20,8 +22,10 @@ export default function BookingBlock({
   locale: string;
   style: CSSProperties;
   showResource?: boolean;
+  clipped?: boolean; // бронь длиннее видимой сетки — низ блока обрезан
   onClick: () => void;
 }) {
+  const tc = useTranslations('calendar');
   const cancelled = booking.status === 'CANCELLED';
   return (
     <button
@@ -54,6 +58,14 @@ export default function BookingBlock({
         </div>
       )}
       <div className="truncate text-muted">{client?.name ?? '—'}</div>
+      {clipped && (
+        <div
+          className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-card/90 to-transparent px-1 text-center text-[9px] font-medium text-muted"
+          title={`${fmtTime(booking.startAt, locale)}–${fmtTime(booking.endAt, locale)}`}
+        >
+          {tc('continues')} ↓
+        </div>
+      )}
     </button>
   );
 }

@@ -1,13 +1,24 @@
 import type {MetadataRoute} from 'next';
+import {getSettings} from '@/lib/queries';
 
 // Web App Manifest → отдаётся по /manifest.webmanifest, ссылку Next вставляет сам.
 // Делает сайт «устанавливаемым»: «Добавить на главный экран» (iOS Safari / Android Chrome)
 // создаёт иконку-приложение, которое открывается в полноэкранном (standalone) режиме.
-export default function manifest(): MetadataRoute.Manifest {
+
+// Имя берём из настроек заведения на каждый запрос (ребрендинг без пересборки).
+export const dynamic = 'force-dynamic';
+
+export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  let company = 'OFFICE 2020';
+  try {
+    company = (await getSettings()).companyName || company;
+  } catch {
+    // БД недоступна (например, при сборке образа) — статичный фолбэк.
+  }
   return {
-    name: 'OFFICE 2020 — Бронирование',
-    short_name: 'OFFICE 2020',
-    description: 'Система брони и управления ресурсами OFFICE 2020',
+    name: `${company} — Бронирование`,
+    short_name: company,
+    description: `Система брони и управления ресурсами ${company}`,
     start_url: '/',
     scope: '/',
     display: 'standalone',

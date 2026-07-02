@@ -168,7 +168,7 @@ export default function SettingsForm({settings}: {settings: AppSettings}) {
         >
           {saving ? tc('loading') : tc('save')}
         </button>
-        {saved && <span className="text-sm text-emerald-600">{t('saved')}</span>}
+        <span aria-live="polite" className="text-sm text-emerald-600">{saved ? t('saved') : ''}</span>
       </div>
     </form>
   );
