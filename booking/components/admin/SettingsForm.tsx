@@ -5,9 +5,7 @@ import {useTranslations} from 'next-intl';
 import {useRouter} from '@/i18n/navigation';
 import {saveSettings} from '@/lib/actions';
 import type {AppSettings} from '@/lib/settings';
-
-const inputCls =
-  'w-full rounded-md border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary';
+import {adminInput as inputCls} from '@/lib/ui';
 
 const MAX_LOGO_BYTES = 400 * 1024; // ~400 КБ (хранится как data-URL в БД)
 

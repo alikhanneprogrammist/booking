@@ -4,6 +4,7 @@ import {useState} from 'react';
 import {useTranslations} from 'next-intl';
 import {saveResource} from '@/lib/actions';
 import type {MockResource} from '@/lib/mock-data';
+import {dialogField, dialogLabel} from '@/lib/ui';
 
 const numOrNull = (s: string) => (s.trim() === '' ? null : Number(s));
 
@@ -70,8 +71,8 @@ export default function ResourceDialog({
     onClose();
   }
 
-  const field = 'rounded-md border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus:border-foreground/40';
-  const label = 'flex flex-col gap-1 text-xs font-medium text-muted';
+  const field = dialogField;
+  const label = dialogLabel;
   const section = 'mt-3 mb-1 text-xs font-medium uppercase tracking-wide text-muted';
 
   const amItems: [keyof typeof am, string][] = [

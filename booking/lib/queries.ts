@@ -10,8 +10,8 @@ import {DEFAULT_SETTINGS, SETTINGS_ID, type AppSettings} from './settings';
  * остались без изменений. Вызывается из серверных страниц.
  */
 
-const num = (d: unknown): number => Number(d as never);
-const numOrNull = (d: unknown): number | null => (d == null ? null : Number(d as never));
+const num = (d: unknown): number => Number(d);
+const numOrNull = (d: unknown): number | null => (d == null ? null : Number(d));
 
 type ResourceRow = Awaited<ReturnType<typeof prisma.resource.findMany>>[number];
 type AddonRow = Awaited<ReturnType<typeof prisma.serviceAddon.findMany>>[number];

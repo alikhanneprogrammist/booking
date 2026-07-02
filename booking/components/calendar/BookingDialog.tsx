@@ -7,6 +7,7 @@ import {computePrice} from '@/lib/pricing';
 import {durationHours} from '@/lib/time';
 import {toLocalInput, fromLocalInput, rangesOverlap, nextDayStr, dayDiffStr} from '@/lib/calendar';
 import {saveBooking, cancelBookingAction, saveClient} from '@/lib/actions';
+import {dialogField, dialogLabel} from '@/lib/ui';
 import type {
   MockResource, MockAddon, MockClient, MockBooking, Tariff, BookingStatus, BookingSource, DiscountType,
 } from '@/lib/mock-data';
@@ -197,9 +198,8 @@ export default function BookingDialog({
     onSaved();
   }
 
-  const fieldCls =
-    'rounded-md border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus:border-foreground/40';
-  const labelCls = 'flex flex-col gap-1 text-xs font-medium text-muted';
+  const fieldCls = dialogField;
+  const labelCls = dialogLabel;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>

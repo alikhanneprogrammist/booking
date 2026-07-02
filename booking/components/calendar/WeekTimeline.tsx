@@ -79,8 +79,9 @@ export default function WeekTimeline({
 
           {days.map((dayStart) => {
             const dayEnd = addDays(dayStart, 1);
+            // Отменённые НЕ фильтруем — как в дневном виде (красные полупрозрачные).
             const items = bookings
-              .filter((b) => b.status !== 'CANCELLED' && b.startAt < dayEnd && b.endAt > dayStart)
+              .filter((b) => b.startAt < dayEnd && b.endAt > dayStart)
               .map((b) => ({
                 b,
                 vStart: b.startAt < dayStart ? dayStart : b.startAt,
@@ -112,6 +113,7 @@ export default function WeekTimeline({
                       client={clients.find((c) => c.id === b.clientId)}
                       addons={addons}
                       locale={locale}
+                      clipped={b.endAt > dayEnd}
                       showResource
                       style={{
                         top, height: Math.max(height, 18),

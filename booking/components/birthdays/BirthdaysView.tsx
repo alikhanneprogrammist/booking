@@ -7,6 +7,7 @@ import type {MockClient} from '@/lib/mock-data';
 import {
   upcomingBirthdays, birthdaysInMonth, formatBirthday, ageTurning, type Today,
 } from '@/lib/birthdays';
+import {sectionHead} from '@/lib/ui';
 
 export default function BirthdaysView({
   clients, today,
@@ -28,7 +29,7 @@ export default function BirthdaysView({
   const rowCls = 'flex items-center gap-3 px-4 py-3 text-sm hover:bg-subtle';
   const emptyCls = 'rounded-lg border border-border py-6 text-center text-sm text-muted';
   const listCls = 'divide-y divide-border overflow-hidden rounded-lg border border-border';
-  const headCls = 'mb-2 text-sm font-medium uppercase tracking-wide text-muted';
+  const headCls = sectionHead;
 
   return (
     <div className="mx-auto max-w-3xl p-6">

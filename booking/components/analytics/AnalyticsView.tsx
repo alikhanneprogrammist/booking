@@ -5,6 +5,7 @@ import {useLocale, useTranslations} from 'next-intl';
 import {Link, useRouter} from '@/i18n/navigation';
 import type {MockBooking, MockResource, MockClient, MockAddon} from '@/lib/mock-data';
 import {kpis, byResource, byEnum, topClients, addonStats, type CountRevenue} from '@/lib/analytics';
+import {sectionHead} from '@/lib/ui';
 
 export type Preset = 'today' | 'week' | 'month' | '30d' | 'all';
 
@@ -75,7 +76,7 @@ export default function AnalyticsView({
   );
 
   const emptyBox = <div className="rounded-lg border border-border py-6 text-center text-sm text-muted">{t('empty')}</div>;
-  const headCls = 'mb-2 text-sm font-medium uppercase tracking-wide text-muted';
+  const headCls = sectionHead;
 
   const breakdown = (
     title: string,

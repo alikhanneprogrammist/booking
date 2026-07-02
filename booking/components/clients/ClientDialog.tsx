@@ -5,6 +5,7 @@ import {useTranslations} from 'next-intl';
 import {saveClient} from '@/lib/actions';
 import {toInputValue, parseInputDate} from '@/lib/birthdays';
 import type {MockClient} from '@/lib/mock-data';
+import {dialogField, dialogLabel} from '@/lib/ui';
 
 export default function ClientDialog({
   mode, client, onClose, onSaved,
@@ -43,8 +44,8 @@ export default function ClientDialog({
     onClose();
   }
 
-  const field = 'rounded-md border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus:border-foreground/40';
-  const label = 'flex flex-col gap-1 text-xs font-medium text-muted';
+  const field = dialogField;
+  const label = dialogLabel;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>

@@ -5,9 +5,7 @@ import {useTranslations} from 'next-intl';
 import {useRouter} from '@/i18n/navigation';
 import {saveSettings} from '@/lib/actions';
 import type {AppSettings} from '@/lib/settings';
-
-const inputCls =
-  'w-full rounded-md border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary';
+import {adminInput as inputCls} from '@/lib/ui';
 
 // Вкладка редактирует ТОЛЬКО тексты публичной страницы и только их отправляет
 // в saveSettings — поля заведения (первая вкладка) не затираются.
