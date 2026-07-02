@@ -1,6 +1,6 @@
 'use client';
 
-import {useEffect, useMemo, useState} from 'react';
+import {useEffect, useMemo, useRef, useState} from 'react';
 import {useTranslations} from 'next-intl';
 import {useRouter} from '@/i18n/navigation';
 import {computePrice} from '@/lib/pricing';
@@ -67,7 +67,8 @@ export default function BookingDialog({
   const [discountType, setDiscountType] = useState<DiscountType>(init?.discountType ?? 'NONE');
   const [discountValue, setDiscountValue] = useState(String(init?.discountValue ?? 0));
   const [total, setTotal] = useState(String(init?.total ?? 0));
-  const [totalTouched, setTotalTouched] = useState(mode === 'edit');
+  // «Итого» правлено руками В ЭТОМ диалоге → авторасчёт выключен до кнопки «Авторасчёт».
+  const [totalTouched, setTotalTouched] = useState(false);
   const [deposit, setDeposit] = useState(String(init?.deposit ?? 0));
   const [prepayment, setPrepayment] = useState(String(init?.prepayment ?? 0));
   const [comment, setComment] = useState(init?.comment ?? '');
@@ -113,7 +114,15 @@ export default function BookingDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resourceId, tariff, date, endDate, startTime, endTime, JSON.stringify(qty), guests, discountType, discountValue]);
 
+  // В edit-режиме первый прогон пропускаем: показываем сохранённый итог (мог быть договорным).
+  // Но любое изменение цено-влияющих полей пересчитывает итог, пока его не правили руками, —
+  // иначе смена времени/скидки молча сохраняла бы устаревшую сумму.
+  const skipFirstPrice = useRef(mode === 'edit');
   useEffect(() => {
+    if (skipFirstPrice.current) {
+      skipFirstPrice.current = false;
+      return;
+    }
     if (!totalTouched && Number.isFinite(price.total)) setTotal(String(price.total));
   }, [price.total, totalTouched]);
 

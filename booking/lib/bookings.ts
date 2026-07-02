@@ -254,6 +254,27 @@ export async function updateBooking(id: string, rawInput: Partial<BookingInput>)
     throw new BookingError('OVERLAP', 'Объект занят в это время', {conflictId: conflict.id});
   }
 
+  // Патч меняет цено-влияющие поля, но не задаёт total → пересчитываем сами,
+  // иначе итог молча разойдётся с фактическим составом брони. Явный total уважаем.
+  const PRICE_KEYS = [
+    'resourceId', 'startAt', 'endAt', 'tariff', 'guests',
+    'discountType', 'discountValue', 'addons',
+  ] as const;
+  let recalcTotal: number | undefined;
+  if (!('total' in raw) && PRICE_KEYS.some((k) => k in raw)) {
+    const addonLines = raw.addons
+      ? raw.addons.map((a) => ({price: a.priceAtBooking, qty: a.qty ?? 1}))
+      : (await prisma.bookingAddon.findMany({where: {bookingId: id}})).map((a) => ({
+          price: Number(a.priceAtBooking),
+          qty: a.qty,
+        }));
+    const price = computePrice(pr, tariff, startAt, endAt, addonLines, raw.guests ?? existing.guests, {
+      type: raw.discountType ?? existing.discountType,
+      value: raw.discountValue ?? Number(existing.discountValue),
+    });
+    recalcTotal = price.total;
+  }
+
   try {
     // Транзакция: при правке состава доп.услуг заменяем строки целиком
     // (deleteMany + create), иначе total разойдётся с фактическими addons.
@@ -272,7 +293,7 @@ export async function updateBooking(id: string, rawInput: Partial<BookingInput>)
           ...(raw.status ? {status: raw.status} : {}),
           ...(raw.source ? {source: raw.source} : {}),
           ...(raw.guests != null ? {guests: raw.guests} : {}),
-          ...(raw.total != null ? {total: raw.total} : {}),
+          ...(raw.total != null ? {total: raw.total} : recalcTotal != null ? {total: recalcTotal} : {}),
           ...(raw.deposit != null ? {deposit: raw.deposit} : {}),
           ...(raw.prepayment != null ? {prepayment: raw.prepayment} : {}),
           ...(raw.discountType != null ? {discountType: raw.discountType} : {}),
