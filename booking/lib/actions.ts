@@ -244,31 +244,34 @@ const orNull = (s: string | undefined) => {
   return v === '' ? null : v;
 };
 
-export async function saveSettings(input: AppSettings) {
+/** Строковые поля с общей '' → NULL логикой (см. orNull). */
+const SETTINGS_STR_KEYS = [
+  'phone', 'whatsapp', 'instagram', 'email', 'address', 'requisites',
+  'publicTitleRu', 'publicTitleKk', 'publicSubtitleRu', 'publicSubtitleKk',
+  'publicInfoRu', 'publicInfoKk', 'publicContacts',
+] as const;
+
+/**
+ * Частичное сохранение: пишутся ТОЛЬКО присутствующие в input ключи.
+ * Вкладки «Заведение» и «Публичная страница» шлют каждая своё подмножество
+ * и не затирают поля друг друга (раньше последняя сохранённая побеждала).
+ */
+export async function saveSettings(input: Partial<AppSettings>) {
   await requireAdmin();
-  // data-URL логотипа не триммим (длинная строка); '' → NULL.
-  const logoUrl = (input.logoUrl ?? '') === '' ? null : input.logoUrl;
   const clamp = (n: number, lo: number, hi: number) =>
     Math.min(hi, Math.max(lo, Math.round(Number.isFinite(n) ? n : lo)));
-  const data = {
-    companyName: (input.companyName ?? '').trim() || 'OFFICE 2020',
-    logoUrl,
-    minBookingHours: clamp(input.minBookingHours, 1, 24),
-    prepaymentPercent: clamp(input.prepaymentPercent, 0, 100),
-    phone: orNull(input.phone),
-    whatsapp: orNull(input.whatsapp),
-    instagram: orNull(input.instagram),
-    email: orNull(input.email),
-    address: orNull(input.address),
-    requisites: orNull(input.requisites),
-    publicTitleRu: orNull(input.publicTitleRu),
-    publicTitleKk: orNull(input.publicTitleKk),
-    publicSubtitleRu: orNull(input.publicSubtitleRu),
-    publicSubtitleKk: orNull(input.publicSubtitleKk),
-    publicInfoRu: orNull(input.publicInfoRu),
-    publicInfoKk: orNull(input.publicInfoKk),
-    publicContacts: orNull(input.publicContacts),
-  };
+
+  const data: Record<string, string | number | null> = {};
+  if ('companyName' in input) data.companyName = (input.companyName ?? '').trim() || 'OFFICE 2020';
+  // data-URL логотипа не триммим (длинная строка); '' → NULL.
+  if ('logoUrl' in input) data.logoUrl = (input.logoUrl ?? '') === '' ? null : input.logoUrl!;
+  if ('minBookingHours' in input) data.minBookingHours = clamp(input.minBookingHours ?? 3, 1, 24);
+  if ('prepaymentPercent' in input) data.prepaymentPercent = clamp(input.prepaymentPercent ?? 0, 0, 100);
+  for (const k of SETTINGS_STR_KEYS) {
+    if (k in input) data[k] = orNull(input[k]);
+  }
+
+  // Все поля модели имеют default/nullable — create с частичным data валиден.
   await prisma.settings.upsert({
     where: {id: SETTINGS_ID},
     update: data,

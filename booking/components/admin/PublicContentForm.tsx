@@ -9,17 +9,32 @@ import type {AppSettings} from '@/lib/settings';
 const inputCls =
   'w-full rounded-md border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary';
 
+// Вкладка редактирует ТОЛЬКО тексты публичной страницы и только их отправляет
+// в saveSettings — поля заведения (первая вкладка) не затираются.
+type PublicSettings = Pick<
+  AppSettings,
+  | 'publicTitleRu' | 'publicTitleKk' | 'publicSubtitleRu' | 'publicSubtitleKk'
+  | 'publicInfoRu' | 'publicInfoKk' | 'publicContacts'
+>;
+
 export default function PublicContentForm({settings}: {settings: AppSettings}) {
   const t = useTranslations('settings');
   const tc = useTranslations('common');
   const router = useRouter();
 
-  // Храним весь объект настроек, чтобы saveSettings не затёр поля заведения.
-  const [form, setForm] = useState<AppSettings>(settings);
+  const [form, setForm] = useState<PublicSettings>({
+    publicTitleRu: settings.publicTitleRu,
+    publicTitleKk: settings.publicTitleKk,
+    publicSubtitleRu: settings.publicSubtitleRu,
+    publicSubtitleKk: settings.publicSubtitleKk,
+    publicInfoRu: settings.publicInfoRu,
+    publicInfoKk: settings.publicInfoKk,
+    publicContacts: settings.publicContacts,
+  });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  function set<K extends keyof AppSettings>(key: K, value: AppSettings[K]) {
+  function set<K extends keyof PublicSettings>(key: K, value: PublicSettings[K]) {
     setForm((f) => ({...f, [key]: value}));
     setSaved(false);
   }
@@ -36,8 +51,8 @@ export default function PublicContentForm({settings}: {settings: AppSettings}) {
   // Двуязычная пара (ru + kk) для одного поля.
   const pair = (
     labelKey: string,
-    ruKey: keyof AppSettings,
-    kkKey: keyof AppSettings,
+    ruKey: keyof PublicSettings,
+    kkKey: keyof PublicSettings,
     type: 'text' | 'textarea' = 'text',
   ) => (
     <div>

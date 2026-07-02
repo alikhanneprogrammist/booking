@@ -11,18 +11,38 @@ const inputCls =
 
 const MAX_LOGO_BYTES = 400 * 1024; // ~400 КБ (хранится как data-URL в БД)
 
+// Вкладка редактирует ТОЛЬКО эти поля и только их отправляет в saveSettings —
+// тексты публичной страницы (вторая вкладка) не затираются.
+type VenueSettings = Pick<
+  AppSettings,
+  | 'companyName' | 'logoUrl' | 'minBookingHours' | 'prepaymentPercent'
+  | 'phone' | 'whatsapp' | 'instagram' | 'email' | 'address' | 'requisites'
+>;
+type VenueTextKey = Exclude<keyof VenueSettings, 'logoUrl' | 'minBookingHours' | 'prepaymentPercent'>;
+
 export default function SettingsForm({settings}: {settings: AppSettings}) {
   const t = useTranslations('settings');
   const tc = useTranslations('common');
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const [form, setForm] = useState<AppSettings>(settings);
+  const [form, setForm] = useState<VenueSettings>({
+    companyName: settings.companyName,
+    logoUrl: settings.logoUrl,
+    minBookingHours: settings.minBookingHours,
+    prepaymentPercent: settings.prepaymentPercent,
+    phone: settings.phone,
+    whatsapp: settings.whatsapp,
+    instagram: settings.instagram,
+    email: settings.email,
+    address: settings.address,
+    requisites: settings.requisites,
+  });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [logoErr, setLogoErr] = useState('');
 
-  function set<K extends keyof AppSettings>(key: K, value: AppSettings[K]) {
+  function set<K extends keyof VenueSettings>(key: K, value: VenueSettings[K]) {
     setForm((f) => ({...f, [key]: value}));
     setSaved(false);
   }
@@ -58,13 +78,13 @@ export default function SettingsForm({settings}: {settings: AppSettings}) {
     router.refresh();
   }
 
-  const field = (key: keyof AppSettings, type: 'text' | 'textarea' = 'text') => (
+  const field = (key: VenueTextKey, type: 'text' | 'textarea' = 'text') => (
     <label className="block">
       <span className="mb-1 block text-xs font-medium text-muted">{t(`venue.${key}`)}</span>
       {type === 'textarea' ? (
-        <textarea rows={3} className={inputCls} value={form[key] as string} onChange={(e) => set(key, e.target.value as never)} />
+        <textarea rows={3} className={inputCls} value={form[key]} onChange={(e) => set(key, e.target.value)} />
       ) : (
-        <input type="text" className={inputCls} value={form[key] as string} onChange={(e) => set(key, e.target.value as never)} />
+        <input type="text" className={inputCls} value={form[key]} onChange={(e) => set(key, e.target.value)} />
       )}
     </label>
   );
@@ -78,7 +98,7 @@ export default function SettingsForm({settings}: {settings: AppSettings}) {
         max={max}
         className={inputCls}
         value={form[key]}
-        onChange={(e) => set(key, (e.target.value === '' ? min : Number(e.target.value)) as never)}
+        onChange={(e) => set(key, e.target.value === '' ? min : Number(e.target.value))}
       />
       <span className="mt-1 block text-[11px] text-muted">{t(`rules.${key}Hint`)}</span>
     </label>
