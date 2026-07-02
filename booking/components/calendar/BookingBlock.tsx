@@ -3,6 +3,7 @@
 import type {CSSProperties} from 'react';
 import {useTranslations} from 'next-intl';
 import {fmtTime} from '@/lib/calendar';
+import {STATUS_BG} from './StatusBadge';
 import type {MockBooking, MockResource, MockClient, MockAddon} from '@/lib/mock-data';
 
 /** Цветной блок брони на таймлайне (ТЗ §4.4): цвет — от объекта, бэйдж — статус. */
@@ -57,12 +58,11 @@ export default function BookingBlock({
       title={tooltip}
       style={{
         ...style,
-        borderLeftColor: resource.color,
-        backgroundColor: resource.color + '22',
+        borderLeftColor: resource.color, // рамка — цвет объекта, фон — цвет статуса
       }}
       className={`absolute overflow-hidden rounded-md border border-border border-l-[3px] px-1.5 py-1 text-left text-[11px] leading-tight shadow-sm transition-shadow hover:shadow ${
-        cancelled ? 'opacity-50' : ''
-      }`}
+        STATUS_BG[booking.status]
+      } ${cancelled ? 'opacity-50' : ''}`}
     >
       <div className="flex items-center gap-1 font-medium">
         <span
