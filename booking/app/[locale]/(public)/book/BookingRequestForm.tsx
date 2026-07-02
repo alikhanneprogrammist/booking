@@ -2,7 +2,7 @@
 
 import {useEffect, useState} from 'react';
 import {useLocale, useTranslations} from 'next-intl';
-import {fromLocalInput} from '@/lib/calendar';
+import {fromLocalInput, nextDayStr} from '@/lib/calendar';
 import {submitBookingRequest, type PublicBookingError} from '@/lib/public-actions';
 
 type ResourceOption = {
@@ -31,13 +31,6 @@ const TIME_SLOTS: string[] = Array.from({length: 48}, (_, i) =>
 /** Сегодняшняя дата в формате YYYY-MM-DD (по часам устройства). */
 function todayStr(): string {
   const d = new Date();
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-/** Следующий день для брони через полночь (конец ≤ начала). */
-function nextDayStr(dateStr: string): string {
-  const d = new Date(`${dateStr}T00:00`);
-  d.setDate(d.getDate() + 1);
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
@@ -216,9 +209,11 @@ export default function BookingRequestForm({resources}: {resources: ResourceOpti
         </label>
       </div>
 
-      {/* Подсказка для брони через полночь */}
+      {/* Подсказка для брони через полночь (равное время = ровно 24 часа) */}
       {end <= start && (
-        <p className="-mt-1 text-xs text-muted">{t('nextDayHint')}</p>
+        <p className="-mt-1 text-xs text-muted">
+          {end === start ? t('fullDayHint') : t('nextDayHint')}
+        </p>
       )}
 
       <label className="flex flex-col gap-1.5">

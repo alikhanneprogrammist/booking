@@ -4,7 +4,7 @@ import {useEffect, useMemo, useState} from 'react';
 import {useLocale, useTranslations} from 'next-intl';
 import {useRouter} from '@/i18n/navigation';
 import {TIMEZONE} from '@/lib/time';
-import {almatyDayStart, addDays, weekStart, fmtDayHeader, fmtDayNum} from '@/lib/calendar';
+import {almatyDayStart, addDays, weekStart, fmtDayHeader, fmtDayNum, toLocalInput} from '@/lib/calendar';
 import type {MockResource, MockAddon, MockClient, MockBooking} from '@/lib/mock-data';
 import ResourceTimeline from './ResourceTimeline';
 import WeekTimeline from './WeekTimeline';
@@ -16,12 +16,13 @@ type Dialog =
   | {open: true; mode: 'edit'; booking: MockBooking};
 
 export default function CalendarView({
-  resources, addons, clients, bookings,
+  resources, addons, clients, bookings, viewDate,
 }: {
   resources: MockResource[];
   addons: MockAddon[];
   clients: MockClient[];
   bookings: MockBooking[];
+  viewDate: Date;
 }) {
   const locale = useLocale();
   const t = useTranslations('calendar');
@@ -29,9 +30,12 @@ export default function CalendarView({
   const router = useRouter();
 
   const [mode, setMode] = useState<'day' | 'week'>('day');
-  const [viewDate, setViewDate] = useState<Date>(() => almatyDayStart(new Date()));
   const [dialog, setDialog] = useState<Dialog>({open: false});
   const [now, setNow] = useState<Date>(() => new Date());
+
+  // День в URL: сервер отдаёт брони только вокруг просматриваемой недели.
+  const setViewDate = (d: Date) =>
+    router.replace(`/calendar?d=${toLocalInput(almatyDayStart(d)).slice(0, 10)}`);
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);

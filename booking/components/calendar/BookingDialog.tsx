@@ -5,7 +5,7 @@ import {useTranslations} from 'next-intl';
 import {useRouter} from '@/i18n/navigation';
 import {computePrice} from '@/lib/pricing';
 import {durationHours} from '@/lib/time';
-import {toLocalInput, fromLocalInput, rangesOverlap} from '@/lib/calendar';
+import {toLocalInput, fromLocalInput, rangesOverlap, nextDayStr, dayDiffStr} from '@/lib/calendar';
 import {saveBooking, cancelBookingAction, saveClient} from '@/lib/actions';
 import type {
   MockResource, MockAddon, MockClient, MockBooking, Tariff, BookingStatus, BookingSource, DiscountType,
@@ -15,14 +15,6 @@ const TARIFFS: Tariff[] = ['HOURLY', 'HALF_DAY', 'FULL_DAY', 'WEEKEND', 'CUSTOM'
 const DISCOUNT_TYPES: DiscountType[] = ['NONE', 'PERCENT', 'AMOUNT'];
 const STATUSES: BookingStatus[] = ['NEW', 'CONFIRMED', 'PREPAID', 'COMPLETED', 'CANCELLED', 'NO_SHOW'];
 const SOURCES: BookingSource[] = ['ADMIN', 'PHONE', 'WHATSAPP', 'INSTAGRAM', 'WIDGET'];
-
-/** Следующий календарный день для строки 'YYYY-MM-DD'. */
-function nextDayStr(dateStr: string): string {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  const dt = new Date(y, m - 1, d + 1);
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`;
-}
 
 export default function BookingDialog({
   mode, booking, prefill, resources, addons, clients, bookings, locale,
@@ -57,6 +49,12 @@ export default function BookingDialog({
   const [date, setDate] = useState(() => toLocalInput(defaultStart).slice(0, 10));
   const [startTime, setStartTime] = useState(() => toLocalInput(defaultStart).slice(11, 16));
   const [endTime, setEndTime] = useState(() => toLocalInput(defaultEnd).slice(11, 16));
+  // Бронь длиннее суток невыразима правилом «конец ≤ начала → +1 день»:
+  // дата конца редактируется явно, иначе сохранение молча укоротит бронь.
+  const [multiDay] = useState(
+    () => dayDiffStr(toLocalInput(defaultStart).slice(0, 10), toLocalInput(defaultEnd).slice(0, 10)) >= 2,
+  );
+  const [endDate, setEndDate] = useState(() => toLocalInput(defaultEnd).slice(0, 10));
   const [guests, setGuests] = useState(init?.guests ?? 2);
   const [tariff, setTariff] = useState<Tariff>(init?.tariff ?? 'HOURLY');
   const [status, setStatus] = useState<BookingStatus>(init?.status ?? 'NEW');
@@ -98,9 +96,11 @@ export default function BookingDialog({
   }
 
   const resource = resources.find((r) => r.id === resourceId)!;
-  const overnight = endTime <= startTime; // конец не позже начала → бронь через полночь
+  const overnight = !multiDay && endTime <= startTime; // конец не позже начала → бронь через полночь
   const startAt = fromLocalInput(`${date}T${startTime}`);
-  const endAt = fromLocalInput(`${overnight ? nextDayStr(date) : date}T${endTime}`);
+  const endAt = fromLocalInput(`${multiDay ? endDate : overnight ? nextDayStr(date) : date}T${endTime}`);
+  // Очищенные поля даты/времени дают Invalid Date — NaN проходит все сравнения молча.
+  const timesValid = !Number.isNaN(startAt.getTime()) && !Number.isNaN(endAt.getTime());
 
   const price = useMemo(() => {
     const lines = addons
@@ -111,10 +111,10 @@ export default function BookingDialog({
       value: Number(discountValue) || 0,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resourceId, tariff, date, startTime, endTime, JSON.stringify(qty), guests, discountType, discountValue]);
+  }, [resourceId, tariff, date, endDate, startTime, endTime, JSON.stringify(qty), guests, discountType, discountValue]);
 
   useEffect(() => {
-    if (!totalTouched) setTotal(String(price.total));
+    if (!totalTouched && Number.isFinite(price.total)) setTotal(String(price.total));
   }, [price.total, totalTouched]);
 
   const name = (r: MockResource) => (locale === 'kk' ? r.nameKk : r.nameRu);
@@ -132,6 +132,8 @@ export default function BookingDialog({
   async function handleSave() {
     setError(null);
     // Клиентские пред-проверки для мгновенной реакции; БД — финальный арбитр.
+    // Invalid Date проверяем первым: сравнения с NaN всегда false и пропустили бы всё ниже.
+    if (!timesValid) return setError(tb('invalidRange'));
     if (endAt <= startAt) return setError(tb('invalidRange'));
     if (tariff === 'HOURLY' && durationHours(startAt, endAt) < resource.minHours) {
       return setError(tb('minDuration', {h: resource.minHours}));
@@ -147,27 +149,32 @@ export default function BookingDialog({
     if (!clientId) return setError(tb('client'));
 
     setSaving(true);
-    const res = await saveBooking({
-      id: booking?.id,
-      resourceId, clientId, startAt, endAt, status, source, tariff, guests,
-      total: Number(total) || 0,
-      deposit: Number(deposit) || 0,
-      prepayment: Number(prepayment) || 0,
-      discountType,
-      discountValue: discountType === 'NONE' ? 0 : Number(discountValue) || 0,
-      comment: comment || undefined,
-      addons: addons
-        .filter((a) => (qty[a.id] ?? 0) > 0)
-        .map((a) => ({addonId: a.id, qty: qty[a.id], priceAtBooking: a.price})),
-    });
-    setSaving(false);
-    if (!res.ok) {
-      if (res.error === 'OVERLAP') return setError(tb('occupied'));
-      if (res.error === 'INVALID_RANGE') return setError(tb('invalidRange'));
-      if (res.error === 'MIN_DURATION') return setError(tb('minDuration', {h: resource.minHours}));
-      return setError(('message' in res && res.message) ? res.message : String(res.error));
+    try {
+      const res = await saveBooking({
+        id: booking?.id,
+        resourceId, clientId, startAt, endAt, status, source, tariff, guests,
+        total: Number(total) || 0,
+        deposit: Number(deposit) || 0,
+        prepayment: Number(prepayment) || 0,
+        discountType,
+        discountValue: discountType === 'NONE' ? 0 : Number(discountValue) || 0,
+        comment: comment || undefined,
+        addons: addons
+          .filter((a) => (qty[a.id] ?? 0) > 0)
+          .map((a) => ({addonId: a.id, qty: qty[a.id], priceAtBooking: a.price})),
+      });
+      if (!res.ok) {
+        if (res.error === 'OVERLAP') return setError(tb('occupied'));
+        if (res.error === 'INVALID_RANGE') return setError(tb('invalidRange'));
+        if (res.error === 'MIN_DURATION') return setError(tb('minDuration', {h: resource.minHours}));
+        return setError(('message' in res && res.message) ? res.message : String(res.error));
+      }
+      onSaved();
+    } catch {
+      setError(tb('errGeneric'));
+    } finally {
+      setSaving(false);
     }
-    onSaved();
   }
 
   async function handleCancel() {
@@ -261,13 +268,23 @@ export default function BookingDialog({
           <div className={labelCls}>
             <span className="flex items-center justify-between">
               <span>{tb('start')} / {tb('end')}</span>
-              {overnight && <span className="text-[10px] normal-case text-amber-600">{tb('nextDayHint')}</span>}
+              {overnight && (
+                <span className="text-[10px] normal-case text-amber-600">
+                  {endTime === startTime ? tb('fullDayHint') : tb('nextDayHint')}
+                </span>
+              )}
             </span>
             <div className="flex gap-1.5">
               <input type="time" className={`${fieldCls} flex-1`} value={startTime} onChange={(e) => setStartTime(e.target.value)} />
               <input type="time" className={`${fieldCls} flex-1`} value={endTime} onChange={(e) => setEndTime(e.target.value)} />
             </div>
           </div>
+          {multiDay && (
+            <label className={labelCls}>
+              {tb('endDate')}
+              <input type="date" className={fieldCls} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+            </label>
+          )}
           <label className={labelCls}>
             {tb('tariff')}
             <select className={fieldCls} value={tariff} onChange={(e) => setTariff(e.target.value as Tariff)}>

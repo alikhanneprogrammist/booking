@@ -26,23 +26,27 @@ export function monthDay(dob: Date): {month: number; day: number} {
   return {month: dob.getUTCMonth(), day: dob.getUTCDate()};
 }
 
-/** Дней до ближайшего дня рождения (>= 0; 0 — сегодня). */
-export function daysUntilBirthday(dob: Date, today: Today): number {
+/**
+ * UTC-метка ближайшего дня рождения (>= сегодня). 29 февраля в невисокосный год
+ * переполняется в 1 марта (Date.UTC) — единая конвенция для daysUntil и ageTurning.
+ */
+function nextBirthdayUtc(dob: Date, today: Today): number {
   const {month, day} = monthDay(dob);
   const todayUtc = Date.UTC(today.year, today.month, today.day);
   let next = Date.UTC(today.year, month, day);
   if (next < todayUtc) next = Date.UTC(today.year + 1, month, day);
-  return Math.round((next - todayUtc) / 86_400_000);
+  return next;
+}
+
+/** Дней до ближайшего дня рождения (>= 0; 0 — сегодня). */
+export function daysUntilBirthday(dob: Date, today: Today): number {
+  const todayUtc = Date.UTC(today.year, today.month, today.day);
+  return Math.round((nextBirthdayUtc(dob, today) - todayUtc) / 86_400_000);
 }
 
 /** Возраст, который исполнится на ближайший день рождения. */
 export function ageTurning(dob: Date, today: Today): number {
-  const birthYear = dob.getUTCFullYear();
-  const {month, day} = monthDay(dob);
-  const laterOrTodayThisYear =
-    month > today.month || (month === today.month && day >= today.day);
-  const birthdayYear = laterOrTodayThisYear ? today.year : today.year + 1;
-  return birthdayYear - birthYear;
+  return new Date(nextBirthdayUtc(dob, today)).getUTCFullYear() - dob.getUTCFullYear();
 }
 
 /** Локализованная дата рождения «15 марта» (UTC — без сдвига дня). */
@@ -50,7 +54,7 @@ export function formatBirthday(dob: Date, locale: string): string {
   return new Intl.DateTimeFormat(locale, {day: 'numeric', month: 'long', timeZone: 'UTC'}).format(dob);
 }
 
-/** Клиенты с ДР в ближайшие `days` дней (вкл. сегодня), с полем daysUntil, по близости. */
+/** Клиенты с ДР в ближайшие `days` дней (сегодня = день 1 из `days`), по близости. */
 export function upcomingBirthdays<T extends {dateOfBirth?: Date}>(
   clients: T[],
   today: Today,
@@ -59,7 +63,7 @@ export function upcomingBirthdays<T extends {dateOfBirth?: Date}>(
   return clients
     .filter((c) => c.dateOfBirth)
     .map((c) => ({...c, daysUntil: daysUntilBirthday(c.dateOfBirth as Date, today)}))
-    .filter((c) => c.daysUntil <= days)
+    .filter((c) => c.daysUntil < days) // полуоткрыто: «7 дней» = daysUntil 0..6
     .sort((a, b) => a.daysUntil - b.daysUntil);
 }
 

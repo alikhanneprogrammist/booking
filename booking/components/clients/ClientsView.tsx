@@ -3,14 +3,14 @@
 import {useMemo, useState} from 'react';
 import {useTranslations} from 'next-intl';
 import {Link, useRouter} from '@/i18n/navigation';
-import type {MockClient, MockBooking} from '@/lib/mock-data';
+import type {MockClient} from '@/lib/mock-data';
 import ClientDialog from './ClientDialog';
 
 export default function ClientsView({
-  clients, bookings,
+  clients, visits,
 }: {
   clients: MockClient[];
-  bookings: MockBooking[];
+  visits: Record<string, number>; // clientId → число визитов (агрегат из БД)
 }) {
   const t = useTranslations('clients');
   const router = useRouter();
@@ -27,12 +27,6 @@ export default function ClientsView({
         (qDigits && c.phone.replace(/\D/g, '').includes(qDigits)),
     );
   }, [query, clients]);
-
-  const visits = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const b of bookings) if (b.status !== 'CANCELLED') m.set(b.clientId, (m.get(b.clientId) ?? 0) + 1);
-    return m;
-  }, [bookings]);
 
   return (
     <div className="flex h-full flex-col">
@@ -82,7 +76,7 @@ export default function ClientsView({
                         ))}
                       </div>
                     </td>
-                    <td className="px-4 py-2 text-right tabular-nums text-muted">{visits.get(c.id) ?? 0}</td>
+                    <td className="px-4 py-2 text-right tabular-nums text-muted">{visits[c.id] ?? 0}</td>
                   </tr>
                 ))}
               </tbody>

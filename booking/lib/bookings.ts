@@ -69,7 +69,7 @@ export const bookingInput = z.object({
   prepayment: z.number().nonnegative().optional(),
   discountType: z.enum(['NONE', 'PERCENT', 'AMOUNT']).default('NONE'),
   discountValue: z.number().nonnegative().default(0),
-  comment: z.string().optional(),
+  comment: z.string().max(2000).optional(),
   addons: z.array(ADDON).default([]),
 });
 
@@ -222,13 +222,22 @@ export async function createBooking(raw: BookingInput, createdById: string) {
 }
 
 /** Редактирование / перенос брони (ТЗ §4.5: смена времени и/или объекта). */
-export async function updateBooking(id: string, raw: Partial<BookingInput>) {
+export async function updateBooking(id: string, rawInput: Partial<BookingInput>) {
+  // Частичная Zod-валидация: заданные поля проходят те же проверки, что и при создании
+  // (иначе прямой вызов server action мог бы записать отрицательные суммы и т.п.).
+  // ВАЖНО: .partial() всё равно подставляет дефолты (status=NEW, addons=[]) для
+  // отсутствующих ключей — оставляем только то, что реально пришло в патче.
+  const parsed = bookingInput.partial().parse(rawInput);
+  const raw = Object.fromEntries(
+    Object.entries(parsed).filter(([k]) => k in rawInput),
+  ) as typeof parsed;
+
   const existing = await prisma.booking.findUnique({where: {id}});
   if (!existing) throw new BookingError('RESOURCE_NOT_FOUND', 'Бронь не найдена');
 
   const resourceId = raw.resourceId ?? existing.resourceId;
-  const startAt = raw.startAt ? z.coerce.date().parse(raw.startAt) : existing.startAt;
-  const endAt = raw.endAt ? z.coerce.date().parse(raw.endAt) : existing.endAt;
+  const startAt = raw.startAt ?? existing.startAt;
+  const endAt = raw.endAt ?? existing.endAt;
   const tariff = (raw.tariff ?? existing.tariff) as Tariff;
 
   const resource = await prisma.resource.findUnique({where: {id: resourceId}});
@@ -294,15 +303,3 @@ export async function cancelBooking(id: string) {
   return prisma.booking.update({where: {id}, data: {status: 'CANCELLED'}});
 }
 
-/** Брони в диапазоне (для календаря, ТЗ §4.4). Включает пересекающие границы. */
-export async function getBookingsInRange(from: Date, to: Date) {
-  return prisma.booking.findMany({
-    where: {
-      status: {not: 'CANCELLED'},
-      startAt: {lt: to},
-      endAt: {gt: from},
-    },
-    include: {resource: true, client: true, addons: {include: {addon: true}}},
-    orderBy: {startAt: 'asc'},
-  });
-}

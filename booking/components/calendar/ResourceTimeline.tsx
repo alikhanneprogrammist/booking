@@ -28,17 +28,18 @@ export default function ResourceTimeline({
   const showNow = now >= dayStart && now < dayEnd;
   const nowTop = (minutesFromDayStart(now, dayStart) / 60) * HOUR_PX;
 
-  // Брони, попадающие в этот день (вкл. ночные, стартующие сегодня, и «хвосты» с прошлого дня).
-  const dayBookings = bookings.filter((b) => b.startAt < dayEnd && b.endAt > dayStart);
-
-  // Сетка 24/7: продлеваем за полночь, если ночная бронь тянется в утро след. дня.
-  const maxEndHours = dayBookings.reduce(
-    (m, b) => Math.max(m, minutesFromDayStart(b.endAt, dayStart) / 60),
-    24,
-  );
+  // Сетка 24/7: продлеваем за полночь, если ночная бронь ЭТОГО дня тянется в утро след. дня
+  // (высоту сетки определяют только брони, пересекающие сами сутки — без цепной прокрутки).
+  const maxEndHours = bookings
+    .filter((b) => b.startAt < dayEnd && b.endAt > dayStart)
+    .reduce((m, b) => Math.max(m, minutesFromDayStart(b.endAt, dayStart) / 60), 24);
   const gridHours = Math.min(32, Math.max(24, Math.ceil(maxEndHours)));
   const gridEnd = new Date(dayStart.getTime() + gridHours * 3600_000);
   const hours = Array.from({length: gridHours}, (_, i) => i);
+
+  // Рисуем всё видимое в сетке [dayStart, gridEnd): «хвосты» с прошлого дня, ночные этого дня
+  // И брони, начинающиеся следующим днём в продлённых строках — иначе занятое там выглядит свободным.
+  const dayBookings = bookings.filter((b) => b.startAt < gridEnd && b.endAt > dayStart);
 
   const name = (r: MockResource) => (locale === 'kk' ? r.nameKk : r.nameRu);
   const groups = KINDS.map((k) => ({k, items: resources.filter((r) => r.kind === k)})).filter((g) => g.items.length);

@@ -1,34 +1,28 @@
 'use client';
 
-import {useMemo, useState} from 'react';
+import {useMemo} from 'react';
 import {useLocale, useTranslations} from 'next-intl';
-import {Link} from '@/i18n/navigation';
+import {Link, useRouter} from '@/i18n/navigation';
 import type {MockBooking, MockResource, MockClient, MockAddon} from '@/lib/mock-data';
 import {kpis, byResource, byEnum, topClients, addonStats, type CountRevenue} from '@/lib/analytics';
-import {almatyDayStart, addDays} from '@/lib/calendar';
-import {toAlmaty} from '@/lib/time';
 
-type Preset = 'today' | 'week' | 'month' | '30d' | 'all';
-
-// Скользящие окна «последние N дней» (вкл. сегодня).
-const ROLLING: Record<string, number> = {today: 1, week: 7, '30d': 30};
+export type Preset = 'today' | 'week' | 'month' | '30d' | 'all';
 
 export default function AnalyticsView({
-  bookings, resources, clients, addons, today, nowMs,
+  bookings, resources, clients, addons, preset,
 }: {
-  bookings: MockBooking[];
+  bookings: MockBooking[]; // уже отфильтрованы по периоду на сервере
   resources: MockResource[];
   clients: MockClient[];
   addons: MockAddon[];
-  today: {year: number; month: number; day: number};
-  nowMs: number;
+  preset: Preset;
 }) {
   const t = useTranslations('analytics');
   const ts = useTranslations('status');
   const tsrc = useTranslations('source');
   const tt = useTranslations('tariff');
   const locale = useLocale();
-  const [preset, setPreset] = useState<Preset>('month');
+  const router = useRouter();
 
   const rMap = useMemo(() => new Map(resources.map((r) => [r.id, r])), [resources]);
   const cMap = useMemo(() => new Map(clients.map((c) => [c.id, c])), [clients]);
@@ -41,30 +35,15 @@ export default function AnalyticsView({
     const a = aMap.get(id);
     return a ? (locale === 'kk' ? a.nameKk : a.nameRu) : id;
   };
-  const money = (n: number) => `${n.toLocaleString()} ₸`;
-
-  // Фильтр по периоду (время начала брони в Алматы).
-  const filtered = useMemo(() => {
-    if (preset === 'all') return bookings;
-    if (preset === 'month') {
-      return bookings.filter((b) => {
-        const w = toAlmaty(b.startAt);
-        return w.getFullYear() === today.year && w.getMonth() === today.month;
-      });
-    }
-    const days = ROLLING[preset] ?? 30;
-    const now = new Date(nowMs);
-    const to = addDays(almatyDayStart(now), 1);
-    const from = almatyDayStart(addDays(now, -(days - 1)));
-    return bookings.filter((b) => b.startAt >= from && b.startAt < to);
-  }, [bookings, preset, today, nowMs]);
+  // Явная локаль: сервер и браузер обязаны форматировать одинаково (иначе hydration mismatch).
+  const money = (n: number) => `${n.toLocaleString(locale)} ₸`;
 
   // Отменённые исключаем везде, кроме разбивки по статусам.
-  const active = useMemo(() => filtered.filter((b) => b.status !== 'CANCELLED'), [filtered]);
+  const active = useMemo(() => bookings.filter((b) => b.status !== 'CANCELLED'), [bookings]);
 
   const k = useMemo(() => kpis(active), [active]);
   const resRows = useMemo(() => byResource(active), [active]);
-  const statusRows = useMemo(() => byEnum(filtered, 'status'), [filtered]);
+  const statusRows = useMemo(() => byEnum(bookings, 'status'), [bookings]);
   const sourceRows = useMemo(() => byEnum(active, 'source'), [active]);
   const tariffRows = useMemo(() => byEnum(active, 'tariff'), [active]);
   const top = useMemo(() => topClients(active, 5), [active]);
@@ -72,7 +51,7 @@ export default function AnalyticsView({
 
   const presetBtn = (p: Preset, label: string) => (
     <button
-      onClick={() => setPreset(p)}
+      onClick={() => router.replace(`/analytics?p=${p}`)}
       className={`rounded-md px-3 py-1 text-sm font-medium ${
         preset === p ? 'bg-primary text-primary-foreground' : 'text-muted hover:text-foreground'
       }`}
@@ -146,10 +125,10 @@ export default function AnalyticsView({
       {/* KPI */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          {label: t('kpi.bookings'), value: k.count.toLocaleString()},
+          {label: t('kpi.bookings'), value: k.count.toLocaleString(locale)},
           {label: t('kpi.revenue'), value: money(k.revenue)},
           {label: t('kpi.avgCheck'), value: money(k.avgCheck)},
-          {label: t('kpi.guests'), value: k.guests.toLocaleString()},
+          {label: t('kpi.guests'), value: k.guests.toLocaleString(locale)},
         ].map((c) => (
           <div key={c.label} className="rounded-lg border border-border bg-card p-3">
             <div className="text-xs text-muted">{c.label}</div>

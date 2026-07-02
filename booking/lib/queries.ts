@@ -121,13 +121,37 @@ export async function getUsers(): Promise<MockUser[]> {
   return rows.map(toUser);
 }
 
-/** Все брони (единый венчур, объём небольшой; фильтрация по дате — на клиенте). */
-export async function getBookings(): Promise<MockBooking[]> {
+/** Брони, пересекающие окно [from, to) — для календаря (все статусы, вкл. отменённые). */
+export async function getBookingsBetween(from: Date, to: Date): Promise<MockBooking[]> {
   const rows = await prisma.booking.findMany({
+    where: {startAt: {lt: to}, endAt: {gt: from}},
     include: {addons: true},
     orderBy: {startAt: 'asc'},
   });
   return rows.map(toBooking);
+}
+
+/**
+ * Брони, начавшиеся в окне [from, to) — для аналитики (атрибуция по началу брони).
+ * Обе границы опциональны: без них — вся история (пресет «всё время»).
+ */
+export async function getBookingsStartingBetween(from?: Date, to?: Date): Promise<MockBooking[]> {
+  const rows = await prisma.booking.findMany({
+    where: {startAt: {...(from ? {gte: from} : {}), ...(to ? {lt: to} : {})}},
+    include: {addons: true},
+    orderBy: {startAt: 'asc'},
+  });
+  return rows.map(toBooking);
+}
+
+/** Число визитов (без отменённых) по клиентам — счётчик для списка клиентов. */
+export async function getVisitCounts(): Promise<Record<string, number>> {
+  const rows = await prisma.booking.groupBy({
+    by: ['clientId'],
+    where: {status: {not: 'CANCELLED'}},
+    _count: {_all: true},
+  });
+  return Object.fromEntries(rows.map((r) => [r.clientId, r._count._all]));
 }
 
 /**

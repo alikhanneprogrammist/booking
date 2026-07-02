@@ -37,6 +37,25 @@ export function rangesOverlap(aS: Date, aE: Date, bS: Date, bE: Date): boolean {
   return aS < bE && aE > bS;
 }
 
+// ─────────────── Календарные строки 'YYYY-MM-DD' (правило «через полночь») ───
+
+/** Следующий календарный день. Общая точка для форм брони (конец ≤ начала → +1 день). */
+export function nextDayStr(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m - 1, d + 1);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`;
+}
+
+/** Разница в календарных днях (b − a) между строками 'YYYY-MM-DD'. */
+export function dayDiffStr(a: string, b: string): number {
+  const [ya, ma, da] = a.split('-').map(Number);
+  const [yb, mb, db] = b.split('-').map(Number);
+  return Math.round(
+    (new Date(yb, mb - 1, db).getTime() - new Date(ya, ma - 1, da).getTime()) / 86_400_000,
+  );
+}
+
 // ───────────────────────── Форматирование (Almaty) ────────────────────
 
 export function fmtTime(instant: Date, locale = 'ru'): string {
