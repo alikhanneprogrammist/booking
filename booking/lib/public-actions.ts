@@ -2,8 +2,10 @@
 
 import {z} from 'zod';
 import {revalidatePath} from 'next/cache';
+import {headers} from 'next/headers';
 import {prisma} from './db';
 import {normalizePhone} from './phone';
+import {rateLimited} from './rate-limit';
 import {createBooking, BookingError} from './bookings';
 
 /**
@@ -32,7 +34,15 @@ export type PublicBookingError =
   | 'OVERLAP'
   | 'MIN_DURATION'
   | 'INVALID_RANGE'
-  | 'RESOURCE_NOT_FOUND';
+  | 'RESOURCE_NOT_FOUND'
+  | 'RATE_LIMITED';
+
+function clientIp(): string {
+  const h = headers();
+  const fwd = h.get('x-forwarded-for');
+  if (fwd) return fwd.split(',')[0].trim();
+  return h.get('x-real-ip') ?? 'unknown';
+}
 
 /** Гарантирует существование служебного создателя заявок (на случай без seed). */
 async function ensureOnlineUser(): Promise<string> {
@@ -53,6 +63,9 @@ async function ensureOnlineUser(): Promise<string> {
 }
 
 export async function submitBookingRequest(raw: unknown) {
+  if (rateLimited(clientIp())) {
+    return {ok: false as const, error: 'RATE_LIMITED' as PublicBookingError};
+  }
   const parsed = requestInput.safeParse(raw);
   if (!parsed.success) {
     return {ok: false as const, error: 'INVALID_INPUT' as PublicBookingError};

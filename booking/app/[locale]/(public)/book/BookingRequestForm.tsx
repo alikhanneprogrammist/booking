@@ -40,6 +40,7 @@ const ERROR_KEYS: Record<PublicBookingError, string> = {
   INVALID_RANGE: 'errInvalidRange',
   RESOURCE_NOT_FOUND: 'errGeneric',
   INVALID_INPUT: 'errGeneric',
+  RATE_LIMITED: 'errRateLimited',
 };
 
 export default function BookingRequestForm({resources}: {resources: ResourceOption[]}) {
