@@ -16,13 +16,14 @@ type Dialog =
   | {open: true; mode: 'edit'; booking: MockBooking};
 
 export default function CalendarView({
-  resources, addons, clients, bookings, viewDate,
+  resources, addons, clients, bookings, viewDate, minBookingHours,
 }: {
   resources: MockResource[];
   addons: MockAddon[];
   clients: MockClient[];
   bookings: MockBooking[];
   viewDate: Date;
+  minBookingHours: number; // глобальный «пол» длительности из настроек заведения
 }) {
   const locale = useLocale();
   const t = useTranslations('calendar');
@@ -137,6 +138,7 @@ export default function CalendarView({
           clients={clients}
           bookings={bookings}
           locale={locale}
+          minBookingHours={minBookingHours}
           onSaved={saved}
           onClose={() => setDialog({open: false})}
         />

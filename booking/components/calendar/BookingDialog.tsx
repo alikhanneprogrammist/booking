@@ -18,7 +18,7 @@ const SOURCES: BookingSource[] = ['ADMIN', 'PHONE', 'WHATSAPP', 'INSTAGRAM', 'WI
 
 export default function BookingDialog({
   mode, booking, prefill, resources, addons, clients, bookings, locale,
-  onSaved, onClose,
+  minBookingHours, onSaved, onClose,
 }: {
   mode: 'create' | 'edit';
   booking?: MockBooking;
@@ -28,6 +28,7 @@ export default function BookingDialog({
   clients: MockClient[];
   bookings: MockBooking[];
   locale: string;
+  minBookingHours: number; // глобальный минимум заведения (сервер применяет max с объектным)
   onSaved: () => void;
   onClose: () => void;
 }) {
@@ -97,6 +98,8 @@ export default function BookingDialog({
   }
 
   const resource = resources.find((r) => r.id === resourceId)!;
+  // Тот же минимум, что применит сервер (lib/bookings.ts): max(объектный, глобальный).
+  const effectiveMinHours = Math.max(resource.minHours, minBookingHours);
   const overnight = !multiDay && endTime <= startTime; // конец не позже начала → бронь через полночь
   const startAt = fromLocalInput(`${date}T${startTime}`);
   const endAt = fromLocalInput(`${multiDay ? endDate : overnight ? nextDayStr(date) : date}T${endTime}`);
@@ -144,8 +147,8 @@ export default function BookingDialog({
     // Invalid Date проверяем первым: сравнения с NaN всегда false и пропустили бы всё ниже.
     if (!timesValid) return setError(tb('invalidRange'));
     if (endAt <= startAt) return setError(tb('invalidRange'));
-    if (tariff === 'HOURLY' && durationHours(startAt, endAt) < resource.minHours) {
-      return setError(tb('minDuration', {h: resource.minHours}));
+    if (tariff === 'HOURLY' && durationHours(startAt, endAt) < effectiveMinHours) {
+      return setError(tb('minDuration', {h: effectiveMinHours}));
     }
     const conflict = bookings.find(
       (b) =>
@@ -175,7 +178,7 @@ export default function BookingDialog({
       if (!res.ok) {
         if (res.error === 'OVERLAP') return setError(tb('occupied'));
         if (res.error === 'INVALID_RANGE') return setError(tb('invalidRange'));
-        if (res.error === 'MIN_DURATION') return setError(tb('minDuration', {h: resource.minHours}));
+        if (res.error === 'MIN_DURATION') return setError(tb('minDuration', {h: effectiveMinHours}));
         return setError(('message' in res && res.message) ? res.message : String(res.error));
       }
       onSaved();
@@ -229,7 +232,7 @@ export default function BookingDialog({
           </div>
           {/* Тарифы (ТЗ §4.9) */}
           <div className="mt-2 text-[11px] text-muted">
-            {tb('tariffs')}: {resource.hourlyPrice.toLocaleString()}/ч (мин {resource.minHours}ч)
+            {tb('tariffs')}: {resource.hourlyPrice.toLocaleString()}/ч (мин {effectiveMinHours}ч)
             {resource.halfDayPrice ? ` · 12ч ${resource.halfDayPrice.toLocaleString()}` : ''}
             {resource.fullDayPrice ? ` · 24ч ${resource.fullDayPrice.toLocaleString()}` : ''}
             {resource.weekendPrice ? ` · вых ${resource.weekendPrice.toLocaleString()}` : ''}

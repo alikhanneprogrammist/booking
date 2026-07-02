@@ -1,6 +1,6 @@
 import {setRequestLocale} from 'next-intl/server';
 import CalendarView from '@/components/calendar/CalendarView';
-import {getResources, getAddons, getClients, getBookingsBetween} from '@/lib/queries';
+import {getResources, getAddons, getClients, getBookingsBetween, getSettings} from '@/lib/queries';
 import {almatyDayStart, weekStart, addDays, fromLocalInput} from '@/lib/calendar';
 
 // Живые данные из БД на каждый запрос (и без обращения к БД на этапе сборки).
@@ -24,11 +24,12 @@ export default async function CalendarPage({
   // Окно выборки: неделя просматриваемого дня + сутки запаса, чтобы покрыть
   // «хвосты» ночных броней и продлённую сетку дня (до +32 ч за последний день недели).
   const ws = weekStart(viewDate);
-  const [resources, addons, clients, bookings] = await Promise.all([
+  const [resources, addons, clients, bookings, settings] = await Promise.all([
     getResources(),
     getAddons(),
     getClients(),
     getBookingsBetween(ws, addDays(ws, 8)),
+    getSettings(),
   ]);
 
   return (
@@ -39,6 +40,7 @@ export default async function CalendarPage({
         clients={clients}
         bookings={bookings}
         viewDate={viewDate}
+        minBookingHours={settings.minBookingHours}
       />
     </div>
   );
