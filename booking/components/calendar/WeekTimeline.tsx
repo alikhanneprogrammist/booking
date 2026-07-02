@@ -1,7 +1,7 @@
 'use client';
 
 import {HOUR_PX, HOURS, fmtHour, fmtWeekday, fmtDayNum, minutesFromDayStart, addDays} from '@/lib/calendar';
-import type {MockResource, MockBooking, MockClient} from '@/lib/mock-data';
+import type {MockResource, MockBooking, MockClient, MockAddon} from '@/lib/mock-data';
 import BookingBlock from './BookingBlock';
 
 interface Placed {
@@ -29,12 +29,13 @@ function packDay(items: {b: MockBooking; vStart: Date; vEnd: Date}[]): {placed: 
 }
 
 export default function WeekTimeline({
-  weekStartDay, resources, bookings, clients, locale, now, onSlotClick, onBookingClick,
+  weekStartDay, resources, bookings, clients, addons, locale, now, onSlotClick, onBookingClick,
 }: {
   weekStartDay: Date;
   resources: MockResource[];
   bookings: MockBooking[];
   clients: MockClient[];
+  addons: MockAddon[];
   locale: string;
   now: Date;
   onSlotClick: (resourceId: string, slot: Date) => void;
@@ -109,6 +110,7 @@ export default function WeekTimeline({
                       booking={b}
                       resource={resOf(b.resourceId)}
                       client={clients.find((c) => c.id === b.clientId)}
+                      addons={addons}
                       locale={locale}
                       showResource
                       style={{

@@ -5,18 +5,19 @@ import {useTranslations} from 'next-intl';
 import {
   HOUR_PX, fmtHour, minutesFromDayStart, addDays,
 } from '@/lib/calendar';
-import type {MockResource, MockBooking, MockClient} from '@/lib/mock-data';
+import type {MockResource, MockBooking, MockClient, MockAddon} from '@/lib/mock-data';
 import BookingBlock from './BookingBlock';
 
 const KINDS = ['COMPLEX', 'KARAOKE'] as const;
 
 export default function ResourceTimeline({
-  dayStart, resources, bookings, clients, locale, now, onSlotClick, onBookingClick,
+  dayStart, resources, bookings, clients, addons, locale, now, onSlotClick, onBookingClick,
 }: {
   dayStart: Date;
   resources: MockResource[];
   bookings: MockBooking[];
   clients: MockClient[];
+  addons: MockAddon[];
   locale: string;
   now: Date;
   onSlotClick: (resourceId: string, slot: Date) => void;
@@ -140,6 +141,7 @@ export default function ResourceTimeline({
                     booking={b}
                     resource={r}
                     client={clients.find((c) => c.id === b.clientId)}
+                    addons={addons}
                     locale={locale}
                     style={{top, height: Math.max(height, 18), left: 4, right: 4}}
                     clipped={b.endAt > gridEnd}

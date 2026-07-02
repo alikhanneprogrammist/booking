@@ -109,6 +109,7 @@ export default function CalendarView({
             resources={resources}
             bookings={bookings}
             clients={clients}
+            addons={addons}
             locale={locale}
             now={now}
             onSlotClick={openCreate}
@@ -120,6 +121,7 @@ export default function CalendarView({
             resources={resources}
             bookings={bookings}
             clients={clients}
+            addons={addons}
             locale={locale}
             now={now}
             onSlotClick={openCreate}
