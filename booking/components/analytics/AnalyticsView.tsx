@@ -36,10 +36,15 @@ export default function AnalyticsView({
     return a ? (locale === 'kk' ? a.nameKk : a.nameRu) : id;
   };
   // Явная локаль: сервер и браузер обязаны форматировать одинаково (иначе hydration mismatch).
-  const money = (n: number) => `${n.toLocaleString(locale)} ₸`;
+  // Округляем до тенге — копейки в выручке только шумят.
+  const money = (n: number) => `${Math.round(n).toLocaleString(locale)} ₸`;
 
-  // Отменённые исключаем везде, кроме разбивки по статусам.
-  const active = useMemo(() => bookings.filter((b) => b.status !== 'CANCELLED'), [bookings]);
+  // Отменённые и неявки исключаем везде, кроме разбивки по статусам:
+  // денег по ним нет — это «упущенная» выручка, не фактическая/ожидаемая.
+  const active = useMemo(
+    () => bookings.filter((b) => b.status !== 'CANCELLED' && b.status !== 'NO_SHOW'),
+    [bookings],
+  );
 
   const k = useMemo(() => kpis(active), [active]);
   const resRows = useMemo(() => byResource(active), [active]);
@@ -76,7 +81,7 @@ export default function AnalyticsView({
     title: string,
     rows: CountRevenue[],
     label: (v: string) => string,
-    lostKey?: string,
+    lostKeys?: string[],
   ) => {
     const max = Math.max(1, ...rows.map((r) => r.count));
     return (
@@ -87,7 +92,7 @@ export default function AnalyticsView({
         ) : (
           <div className="space-y-2 rounded-lg border border-border p-3">
             {rows.map((r) => {
-              const lost = r.key === lostKey;
+              const lost = lostKeys?.includes(r.key) ?? false;
               return (
                 <div key={r.key}>
                   <div className="flex items-baseline justify-between text-sm">
@@ -162,7 +167,7 @@ export default function AnalyticsView({
 
       {/* Разбивки */}
       <section className="mt-6 grid gap-4 sm:grid-cols-3">
-        {breakdown(t('byStatus'), statusRows, (v) => ts(v), 'CANCELLED')}
+        {breakdown(t('byStatus'), statusRows, (v) => ts(v), ['CANCELLED', 'NO_SHOW'])}
         {breakdown(t('bySource'), sourceRows, (v) => tsrc(v))}
         {breakdown(t('byTariff'), tariffRows, (v) => tt(v))}
       </section>
