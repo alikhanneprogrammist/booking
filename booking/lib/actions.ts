@@ -31,6 +31,58 @@ function isUniquePhone(e: unknown): boolean {
 
 // ───────────────────────── Клиенты (ТЗ §4.3) ──────────────────────────
 
+/** Строка импорта гостей (валидируется и на клиенте, и здесь). */
+export interface ImportClientInput {
+  name: string;
+  phone: string;
+  note?: string;
+  tags?: string[];
+  dateOfBirth?: Date;
+}
+
+export type ImportClientResult = {
+  name: string;
+  phone: string;
+  ok: boolean;
+  error?: 'DUPLICATE_PHONE' | 'INVALID';
+};
+
+const CLIENT_IMPORT_MAX_ROWS = 500; // защитный потолок на один импорт
+
+/** Импорт гостей из Excel/CSV (разбор файла — на клиенте, lib/import-clients). */
+export async function importClients(rows: ImportClientInput[]) {
+  if (!(await currentUser())) return {ok: false as const, error: 'FORBIDDEN' as const};
+  const results: ImportClientResult[] = [];
+
+  for (const r of rows.slice(0, CLIENT_IMPORT_MAX_ROWS)) {
+    const name = (r.name ?? '').trim();
+    const phone = normalizePhone(r.phone ?? '');
+    // Серверная перепроверка: клиенту доверять нельзя.
+    if (!name || !/^\+\d{10,15}$/.test(phone)) {
+      results.push({name, phone, ok: false, error: 'INVALID'});
+      continue;
+    }
+    try {
+      await prisma.client.create({
+        data: {
+          name,
+          phone,
+          note: r.note?.trim() || null,
+          tags: (r.tags ?? []).map((t) => String(t).trim()).filter(Boolean),
+          dateOfBirth: r.dateOfBirth ?? null,
+        },
+      });
+      results.push({name, phone, ok: true});
+    } catch (e) {
+      if (isUniquePhone(e)) results.push({name, phone, ok: false, error: 'DUPLICATE_PHONE'});
+      else throw e;
+    }
+  }
+
+  refresh();
+  return {ok: true as const, results};
+}
+
 export async function saveClient(input: {
   id?: string; name: string; phone: string; note?: string; tags?: string[]; dateOfBirth?: Date;
 }) {

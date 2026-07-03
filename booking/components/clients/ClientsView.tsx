@@ -5,6 +5,7 @@ import {useTranslations} from 'next-intl';
 import {Link, useRouter} from '@/i18n/navigation';
 import type {MockClient} from '@/lib/types';
 import ClientDialog from './ClientDialog';
+import ImportClientsDialog from './ImportClientsDialog';
 
 export default function ClientsView({
   clients, visits,
@@ -16,6 +17,7 @@ export default function ClientsView({
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [dialog, setDialog] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -39,6 +41,12 @@ export default function ClientsView({
             placeholder={t('search')}
             className="w-64 rounded-md border border-border bg-background px-3 py-1.5 text-sm outline-none focus:border-foreground/40"
           />
+          <button
+            onClick={() => setImportOpen(true)}
+            className="rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-subtle"
+          >
+            {t('import.button')}
+          </button>
           <button
             onClick={() => setDialog(true)}
             className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90"
@@ -90,6 +98,13 @@ export default function ClientsView({
           mode="create"
           onClose={() => setDialog(false)}
           onSaved={() => router.refresh()}
+        />
+      )}
+
+      {importOpen && (
+        <ImportClientsDialog
+          onClose={() => setImportOpen(false)}
+          onDone={() => router.refresh()}
         />
       )}
     </div>
