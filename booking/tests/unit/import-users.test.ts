@@ -1,5 +1,17 @@
 import {describe, expect, it} from 'vitest';
-import {parseUserRows} from '@/lib/import-users';
+import {parseUserRows, USER_TEMPLATE} from '@/lib/import-users';
+
+describe('USER_TEMPLATE — скачиваемый шаблон понимается парсером', () => {
+  (['ru', 'kk'] as const).forEach((loc) => {
+    it(`шаблон ${loc}: все строки-примеры валидны`, () => {
+      const rows = parseUserRows(USER_TEMPLATE[loc].rows);
+      expect(rows.length).toBe(USER_TEMPLATE[loc].rows.length - 1); // минус заголовок
+      expect(rows.every((r) => !r.error)).toBe(true);
+      expect(rows[1].role).toBe('ADMIN'); // «Админ»/«Әкімші» распознан
+      expect(rows[1].password).toBe('secret99');
+    });
+  });
+});
 
 describe('parseUserRows — заголовки', () => {
   it('распознаёт русские заголовки и маппит колонки', () => {

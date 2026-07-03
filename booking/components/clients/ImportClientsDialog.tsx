@@ -1,9 +1,9 @@
 'use client';
 
 import {useState} from 'react';
-import {useTranslations} from 'next-intl';
+import {useLocale, useTranslations} from 'next-intl';
 import {importClients, type ImportClientResult} from '@/lib/actions';
-import {parseClientRows, type ImportClientRow} from '@/lib/import-clients';
+import {parseClientRows, CLIENT_TEMPLATE, type ImportClientRow} from '@/lib/import-clients';
 
 /**
  * Импорт гостей из Excel/CSV. Файл разбирается в браузере (SheetJS,
@@ -17,6 +17,7 @@ export default function ImportClientsDialog({
   onDone: () => void;
 }) {
   const ti = useTranslations('clients.import');
+  const locale = useLocale();
 
   const [rows, setRows] = useState<ImportClientRow[] | null>(null);
   const [parseErr, setParseErr] = useState(false);
@@ -40,6 +41,18 @@ export default function ImportClientsDialog({
   }
 
   const valid = (rows ?? []).filter((r) => !r.error);
+
+  // Готовый .xlsx с примером — генерируется на лету из того же шаблона,
+  // который гарантированно понимает парсер (это проверяет юнит-тест).
+  async function downloadTemplate() {
+    const XLSX = await import('xlsx');
+    const tpl = CLIENT_TEMPLATE[locale === 'kk' ? 'kk' : 'ru'];
+    const ws = XLSX.utils.aoa_to_sheet(tpl.rows);
+    ws['!cols'] = tpl.rows[0].map(() => ({wch: 20}));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, tpl.sheet);
+    XLSX.writeFile(wb, tpl.file);
+  }
 
   async function runImport() {
     setBusy(true);
@@ -100,6 +113,9 @@ export default function ImportClientsDialog({
         ) : (
           <>
             <p className="text-xs text-muted">{ti('hint')}</p>
+            <button type="button" onClick={downloadTemplate} className="mt-2 text-xs font-medium text-blue-600 hover:underline">
+              ⬇ {ti('template')}
+            </button>
             <input
               type="file"
               accept=".xlsx,.xls,.csv"

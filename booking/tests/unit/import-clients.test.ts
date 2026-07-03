@@ -1,5 +1,16 @@
 import {describe, expect, it} from 'vitest';
-import {parseClientRows, parseBirthdayCell} from '@/lib/import-clients';
+import {parseClientRows, parseBirthdayCell, CLIENT_TEMPLATE} from '@/lib/import-clients';
+
+describe('CLIENT_TEMPLATE — скачиваемый шаблон понимается парсером', () => {
+  (['ru', 'kk'] as const).forEach((loc) => {
+    it(`шаблон ${loc}: все строки-примеры валидны`, () => {
+      const rows = parseClientRows(CLIENT_TEMPLATE[loc].rows);
+      expect(rows.length).toBe(CLIENT_TEMPLATE[loc].rows.length - 1); // минус заголовок
+      expect(rows.every((r) => !r.error)).toBe(true);
+      expect(rows[0].dateOfBirth?.toISOString()).toBe('1990-03-15T00:00:00.000Z');
+    });
+  });
+});
 
 describe('parseBirthdayCell', () => {
   it('пусто → null', () => {
