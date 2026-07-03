@@ -19,13 +19,14 @@ type Dialog =
   | {open: true; mode: 'edit'; booking: MockBooking};
 
 export default function CalendarView({
-  resources, addons, clients, bookings, viewDate, minBookingHours,
+  resources, addons, clients, bookings, viewDate, explicitDate, minBookingHours,
 }: {
   resources: MockResource[];
   addons: MockAddon[];
   clients: MockClient[];
   bookings: MockBooking[];
   viewDate: Date;
+  explicitDate: boolean; // день выбран явно через ?d — не перескакивать в полночь
   minBookingHours: number; // глобальный «пол» длительности из настроек заведения
 }) {
   const locale = useLocale();
@@ -46,6 +47,14 @@ export default function CalendarView({
     const id = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(id);
   }, []);
+
+  // Вкладка, открытая через полночь: если день не выбран явно (?d),
+  // при смене суток (Алматы) перечитываем сервер — календарь сам покажет новый день.
+  useEffect(() => {
+    if (explicitDate) return;
+    if (almatyDayStart(now).getTime() !== viewDate.getTime()) router.refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [now, explicitDate, viewDate]);
 
   const ws = useMemo(() => weekStart(viewDate), [viewDate]);
   const step = mode === 'day' ? 1 : 7;

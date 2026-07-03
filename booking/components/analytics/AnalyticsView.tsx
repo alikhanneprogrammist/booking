@@ -1,22 +1,24 @@
 'use client';
 
-import {useMemo} from 'react';
+import {useMemo, useState} from 'react';
 import {useLocale, useTranslations} from 'next-intl';
 import {Link, useRouter} from '@/i18n/navigation';
 import type {MockBooking, MockResource, MockClient, MockAddon} from '@/lib/mock-data';
 import {kpis, byResource, byEnum, topClients, addonStats, type CountRevenue} from '@/lib/analytics';
 import {sectionHead} from '@/lib/ui';
 
-export type Preset = 'today' | 'week' | 'month' | '30d' | 'all';
+export type Preset = 'today' | 'week' | 'month' | '30d' | 'custom';
 
 export default function AnalyticsView({
-  bookings, resources, clients, addons, preset,
+  bookings, resources, clients, addons, preset, rangeFrom, rangeTo,
 }: {
   bookings: MockBooking[]; // уже отфильтрованы по периоду на сервере
   resources: MockResource[];
   clients: MockClient[];
   addons: MockAddon[];
   preset: Preset;
+  rangeFrom: string; // активный диапазон YYYY-MM-DD (конец включительно) —
+  rangeTo: string; //   начальные значения полей выбора произвольного периода
 }) {
   const t = useTranslations('analytics');
   const ts = useTranslations('status');
@@ -24,6 +26,13 @@ export default function AnalyticsView({
   const tt = useTranslations('tariff');
   const locale = useLocale();
   const router = useRouter();
+
+  // Произвольный период «с … по …» (замена неограниченного «Всё время»).
+  const [from, setFrom] = useState(rangeFrom);
+  const [to, setTo] = useState(rangeTo);
+  const applyCustom = () => {
+    if (from && to) router.replace(`/analytics?p=custom&from=${from}&to=${to}`);
+  };
 
   const rMap = useMemo(() => new Map(resources.map((r) => [r.id, r])), [resources]);
   const cMap = useMemo(() => new Map(clients.map((c) => [c.id, c])), [clients]);
@@ -119,12 +128,40 @@ export default function AnalyticsView({
     <div className="mx-auto max-w-4xl p-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-lg font-semibold tracking-tight">{t('title')}</h1>
-        <div className="inline-flex flex-wrap rounded-md border border-border p-0.5">
-          {presetBtn('today', t('period.today'))}
-          {presetBtn('week', t('period.week'))}
-          {presetBtn('month', t('period.month'))}
-          {presetBtn('30d', t('period.last30'))}
-          {presetBtn('all', t('period.all'))}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex flex-wrap rounded-md border border-border p-0.5">
+            {presetBtn('today', t('period.today'))}
+            {presetBtn('week', t('period.week'))}
+            {presetBtn('month', t('period.month'))}
+            {presetBtn('30d', t('period.last30'))}
+          </div>
+          {/* Произвольный период */}
+          <div className={`inline-flex items-center gap-1 rounded-md border p-0.5 ${
+            preset === 'custom' ? 'border-primary' : 'border-border'
+          }`}>
+            <input
+              type="date"
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+              className="rounded bg-transparent px-1.5 py-0.5 text-sm outline-none"
+            />
+            <span className="text-muted">–</span>
+            <input
+              type="date"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              className="rounded bg-transparent px-1.5 py-0.5 text-sm outline-none"
+            />
+            <button
+              onClick={applyCustom}
+              disabled={!from || !to}
+              className={`rounded px-2.5 py-1 text-sm font-medium disabled:opacity-50 ${
+                preset === 'custom' ? 'bg-primary text-primary-foreground' : 'text-muted hover:text-foreground'
+              }`}
+            >
+              {t('period.apply')}
+            </button>
+          </div>
         </div>
       </div>
 

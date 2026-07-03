@@ -55,6 +55,7 @@ export default function BookingRequestForm({resources}: {resources: ResourceOpti
   const [end, setEnd] = useState('23:00');
   const [guests, setGuests] = useState('1');
   const [comment, setComment] = useState('');
+  const [website, setWebsite] = useState(''); // honeypot: люди не видят, боты заполняют
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +89,7 @@ export default function BookingRequestForm({resources}: {resources: ResourceOpti
         endAt: endAt.toISOString(),
         guests: Number(guests) || 1,
         comment: comment.trim() || undefined,
+        website: website || undefined,
       });
       if (res.ok) {
         setSuccess(true);
@@ -131,6 +133,17 @@ export default function BookingRequestForm({resources}: {resources: ResourceOpti
 
   return (
     <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-3">
+      {/* Honeypot: скрыто от людей (и от скринридеров), боты-автозаполнялки попадаются */}
+      <input
+        type="text"
+        name="website"
+        value={website}
+        onChange={(e) => setWebsite(e.target.value)}
+        className="hidden"
+        tabIndex={-1}
+        autoComplete="off"
+        aria-hidden="true"
+      />
       <label className="flex flex-col gap-1.5">
         <span className="text-xs font-medium text-muted">{t('resource')}</span>
         <select

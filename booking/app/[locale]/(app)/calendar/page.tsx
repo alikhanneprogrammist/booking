@@ -18,7 +18,8 @@ export default async function CalendarPage({
 
   // Просматриваемый день из URL (?d=YYYY-MM-DD, стеночная дата Алматы); мусор → сегодня.
   const {d} = await searchParams;
-  const parsed = d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? fromLocalInput(`${d}T00:00`) : new Date();
+  const explicitDate = Boolean(d && /^\d{4}-\d{2}-\d{2}$/.test(d));
+  const parsed = explicitDate ? fromLocalInput(`${d}T00:00`) : new Date();
   const viewDate = almatyDayStart(Number.isNaN(parsed.getTime()) ? new Date() : parsed);
 
   // Окно выборки: неделя просматриваемого дня + сутки запаса, чтобы покрыть
@@ -40,6 +41,7 @@ export default async function CalendarPage({
         clients={clients}
         bookings={bookings}
         viewDate={viewDate}
+        explicitDate={explicitDate}
         minBookingHours={settings.minBookingHours}
       />
     </div>

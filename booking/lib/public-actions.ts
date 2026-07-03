@@ -5,7 +5,7 @@ import {revalidatePath} from 'next/cache';
 import {headers} from 'next/headers';
 import {prisma} from './db';
 import {normalizePhone} from './phone';
-import {rateLimited} from './rate-limit';
+import {rateLimited, WINDOW_MS, GLOBAL_LIMIT} from './rate-limit';
 import {createBooking, BookingError} from './bookings';
 
 /**
@@ -27,6 +27,8 @@ const requestInput = z.object({
   endAt: z.coerce.date(),
   guests: z.coerce.number().int().positive().max(1000).default(1),
   comment: z.string().trim().max(1000).optional(),
+  // Honeypot: скрытое поле формы — люди его не видят, боты заполняют.
+  website: z.string().max(200).optional(),
 });
 
 export type PublicBookingError =
@@ -71,6 +73,21 @@ export async function submitBookingRequest(raw: unknown) {
     return {ok: false as const, error: 'INVALID_INPUT' as PublicBookingError};
   }
   const data = parsed.data;
+
+  // Honeypot заполнен → бот. Отвечаем «успехом» (чтобы не подсказывать), брони не создаём.
+  if (data.website) {
+    return {ok: true as const};
+  }
+
+  // Глобальный потолок по БД — в отличие от in-memory журнала переживает
+  // рестарт контейнера: спамер не сбросит счётчик, уронив приложение.
+  const recentWidget = await prisma.booking.count({
+    where: {source: 'WIDGET', createdAt: {gt: new Date(Date.now() - WINDOW_MS)}},
+  });
+  if (recentWidget >= GLOBAL_LIMIT) {
+    return {ok: false as const, error: 'RATE_LIMITED' as PublicBookingError};
+  }
+
   const phone = normalizePhone(data.phone);
   if (!phone) {
     return {ok: false as const, error: 'INVALID_INPUT' as PublicBookingError};
