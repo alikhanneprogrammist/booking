@@ -2,7 +2,6 @@ import {toAlmaty, fromAlmaty, TIMEZONE} from './time';
 
 /** Высота часа в пикселях на таймлайне. 24 ч × 56 = 1344px. */
 export const HOUR_PX = 56;
-export const DAY_MINUTES = 24 * 60;
 export const HOURS = Array.from({length: 24}, (_, i) => i);
 
 /** Инстант начала суток (00:00 Almaty) для даты, на которую попадает instant. */
@@ -30,11 +29,6 @@ export function weekStart(instant: Date): Date {
 /** Минуты от начала суток (может быть <0 или >1440 — для клиппинга). */
 export function minutesFromDayStart(instant: Date, dayStart: Date): number {
   return (instant.getTime() - dayStart.getTime()) / 60000;
-}
-
-/** Пересечение полуоткрытых интервалов [s,e). */
-export function rangesOverlap(aS: Date, aE: Date, bS: Date, bE: Date): boolean {
-  return aS < bE && aE > bS;
 }
 
 // ─────────────── Календарные строки 'YYYY-MM-DD' (правило «через полночь») ───

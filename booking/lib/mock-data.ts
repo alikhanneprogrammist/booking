@@ -139,6 +139,3 @@ export const MOCK_BOOKINGS: MockBooking[] = [
     addons: [],
   },
 ];
-
-/** Стартовая дата календаря для демо (есть брони). */
-export const DEMO_DATE = at(2026, 6, 22, 12, 0);

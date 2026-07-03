@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# OFFICE 2020 — система бронирования
 
-## Getting Started
+Внутренняя система брони VIP-объектов (аналог Altegio): календарь занятости 24/7
+с анти-овербукингом на уровне БД, клиенты, аналитика, публичная форма заявок,
+двуязычный интерфейс (рус/каз).
 
-First, run the development server:
+**Стек:** Next.js 14 (App Router) · Prisma 6 · PostgreSQL 16 · Auth.js 5 · Tailwind · next-intl
+
+## Быстрый старт
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env      # заполнить секреты (см. deploy.md §2)
+docker compose up -d --build
+# приложение: http://localhost:3000  ·  публичная форма: /ru/book
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Миграции и первый администратор (`ADMIN_PHONE`/`ADMIN_PASSWORD` из `.env`)
+создаются автоматически при старте. Полное руководство по установке,
+обновлению, бэкапам и HTTPS — **[deploy.md](deploy.md)**.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Разработка
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm ci
+npm run dev               # dev-сервер (нужен Postgres из compose или свой)
+npx tsc --noEmit          # типы
+npm run test:unit         # юнит-тесты (без БД)
+npm run test:db           # интеграционные (нужна поднятая БД с сидом)
+npm run test              # всё
+```
 
-## Learn More
+CI (GitHub Actions) на каждый пуш: типы → юнит-тесты → миграции + сид →
+интеграционные тесты → тест анти-овербукинга → прод-сборка.
 
-To learn more about Next.js, take a look at the following resources:
+## Структура
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Путь | Что там |
+|---|---|
+| `app/[locale]/(app)/` | разделы за логином: календарь, клиенты, аналитика, админка |
+| `app/[locale]/(public)/book/` | публичная форма заявок (без логина, rate-limit + honeypot) |
+| `lib/bookings.ts` | домен брони: валидация, анти-овербукинг, авторасчёт цены |
+| `lib/pricing.ts` | чистый расчёт стоимости (тарифы, скидки) |
+| `lib/queries.ts` / `lib/actions.ts` | серверные чтения (Prisma → DTO) / мутации с гардами |
+| `lib/enums.ts` / `lib/types.ts` | enum-значения домена / DTO-типы |
+| `prisma/` | схема, миграции (вкл. exclusion constraint `booking_no_overlap`), сид |
+| `messages/` | словари ru/kk (паритет ключей проверяется тестом) |
+| `scripts/backup-db.sh` | ежедневный бэкап БД (cron), см. deploy.md §7 |

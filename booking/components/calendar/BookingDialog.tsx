@@ -3,8 +3,8 @@
 import {useEffect, useMemo, useRef, useState} from 'react';
 import {useTranslations} from 'next-intl';
 import {computePrice} from '@/lib/pricing';
-import {durationHours} from '@/lib/time';
-import {toLocalInput, fromLocalInput, rangesOverlap, nextDayStr, dayDiffStr} from '@/lib/calendar';
+import {durationHours, intervalsOverlap} from '@/lib/time';
+import {toLocalInput, fromLocalInput, nextDayStr, dayDiffStr} from '@/lib/calendar';
 import {saveBooking, cancelBookingAction} from '@/lib/actions';
 import {dialogField, dialogLabel} from '@/lib/ui';
 import {TARIFFS, DISCOUNT_TYPES, BOOKING_STATUSES, BOOKING_SOURCES} from '@/lib/enums';
@@ -120,7 +120,7 @@ export default function BookingDialog({
         b.resourceId === resourceId &&
         b.status !== 'CANCELLED' &&
         b.id !== booking?.id &&
-        rangesOverlap(b.startAt, b.endAt, startAt, endAt),
+        intervalsOverlap(b.startAt, b.endAt, startAt, endAt),
     );
     if (conflict) return setError(tb('occupied'));
     if (!clientId) return setError(tb('clientRequired'));

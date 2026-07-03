@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import {
-  nextDayStr, dayDiffStr, rangesOverlap, almatyDayStart, addDays, weekStart,
+  nextDayStr, dayDiffStr, almatyDayStart, addDays, weekStart,
   toLocalInput, fromLocalInput,
 } from '@/lib/calendar';
 import {fromAlmaty, toAlmaty} from '@/lib/time';
@@ -26,14 +26,6 @@ describe('dayDiffStr', () => {
   });
   it('через границу месяца', () => {
     expect(dayDiffStr('2026-06-30', '2026-07-02')).toBe(2);
-  });
-});
-
-describe('rangesOverlap — полуоткрытые', () => {
-  const d = (h: number) => new Date(Date.UTC(2026, 6, 3, h));
-  it('касание — не пересечение, перекрытие — пересечение', () => {
-    expect(rangesOverlap(d(10), d(12), d(12), d(14))).toBe(false);
-    expect(rangesOverlap(d(10), d(13), d(12), d(14))).toBe(true);
   });
 });
 
