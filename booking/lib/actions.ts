@@ -226,6 +226,63 @@ export async function setUserActiveAction(id: string, isActive: boolean) {
   return {ok: true as const};
 }
 
+/** Строка импорта сотрудников (валидируется и на клиенте, и здесь). */
+export interface ImportUserInput {
+  name: string;
+  phone: string;
+  email?: string;
+  role: 'ADMIN' | 'MANAGER';
+  password?: string;
+}
+
+export type ImportUserResult = {
+  name: string;
+  phone: string;
+  ok: boolean;
+  tempPassword?: string; // выдан, если пароль не задан в файле
+  error?: 'DUPLICATE_PHONE' | 'INVALID';
+};
+
+const IMPORT_MAX_ROWS = 200; // защитный потолок на один импорт
+
+/** Импорт сотрудников из Excel/CSV (разбор файла — на клиенте, lib/import-users). */
+export async function importUsers(rows: ImportUserInput[]) {
+  await requireAdmin();
+  const results: ImportUserResult[] = [];
+
+  for (const r of rows.slice(0, IMPORT_MAX_ROWS)) {
+    const name = (r.name ?? '').trim();
+    const phone = normalizePhone(r.phone ?? '');
+    const chosen = (r.password ?? '').trim();
+    // Серверная перепроверка: клиенту доверять нельзя (экшен вызывается по id глобально).
+    if (!name || !/^\+\d{10,15}$/.test(phone) || (chosen !== '' && chosen.length < MIN_PASSWORD)) {
+      results.push({name, phone, ok: false, error: 'INVALID'});
+      continue;
+    }
+    const password = chosen || `OFF-${randomUUID().slice(0, 8)}`;
+    const passwordHash = await bcrypt.hash(password, 10);
+    try {
+      await prisma.user.create({
+        data: {
+          name,
+          phone,
+          email: r.email?.trim() || null,
+          role: r.role === 'ADMIN' ? 'ADMIN' : 'MANAGER',
+          isActive: true,
+          passwordHash,
+        },
+      });
+      results.push({name, phone, ok: true, tempPassword: chosen ? undefined : password});
+    } catch (e) {
+      if (isUniquePhone(e)) results.push({name, phone, ok: false, error: 'DUPLICATE_PHONE'});
+      else throw e;
+    }
+  }
+
+  refresh();
+  return {ok: true as const, results};
+}
+
 /** FR-USER-3: сброс пароля — админ задаёт новый пароль вручную. */
 export async function resetPasswordAction(id: string, newPassword: string) {
   await requireAdmin();

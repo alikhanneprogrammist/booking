@@ -6,11 +6,13 @@ import {useRouter} from '@/i18n/navigation';
 import {setUserActiveAction, resetPasswordAction} from '@/lib/actions';
 import type {MockUser} from '@/lib/types';
 import UserDialog from './UserDialog';
+import ImportUsersDialog from './ImportUsersDialog';
 
 export default function UsersView({users}: {users: MockUser[]}) {
   const t = useTranslations('users');
   const router = useRouter();
   const [dialog, setDialog] = useState<{open: boolean; user?: MockUser}>({open: false});
+  const [importOpen, setImportOpen] = useState(false);
   // Мини-диалог сброса пароля (вместо window.prompt/alert).
   const [resetFor, setResetFor] = useState<MockUser | null>(null);
   const [newPass, setNewPass] = useState('');
@@ -44,9 +46,14 @@ export default function UsersView({users}: {users: MockUser[]}) {
     <div className="mx-auto max-w-4xl p-6">
       <header className="mb-4 flex items-center justify-between">
         <h1 className="text-lg font-semibold tracking-tight">{t('title')}</h1>
-        <button onClick={() => setDialog({open: true})} className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90">
-          + {t('add')}
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setImportOpen(true)} className="rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-subtle">
+            {t('import.button')}
+          </button>
+          <button onClick={() => setDialog({open: true})} className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90">
+            + {t('add')}
+          </button>
+        </div>
       </header>
 
       <div className="overflow-hidden rounded-lg border border-border">
@@ -99,6 +106,13 @@ export default function UsersView({users}: {users: MockUser[]}) {
           user={dialog.user}
           onClose={() => setDialog({open: false})}
           onSaved={() => router.refresh()}
+        />
+      )}
+
+      {importOpen && (
+        <ImportUsersDialog
+          onClose={() => setImportOpen(false)}
+          onDone={() => router.refresh()}
         />
       )}
 
