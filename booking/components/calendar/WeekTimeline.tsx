@@ -1,7 +1,7 @@
 'use client';
 
 import {HOUR_PX, HOURS, fmtHour, fmtWeekday, fmtDayNum, minutesFromDayStart, addDays} from '@/lib/calendar';
-import type {MockResource, MockBooking, MockClient, MockAddon} from '@/lib/mock-data';
+import type {MockResource, MockBooking, MockClient, MockAddon} from '@/lib/types';
 import BookingBlock from './BookingBlock';
 
 interface Placed {

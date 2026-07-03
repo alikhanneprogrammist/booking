@@ -1,86 +1,8 @@
 import {fromAlmaty} from './time';
+import type {MockResource, MockAddon, MockClient, MockUser, MockBooking} from './types';
 
-// Моки повторяют форму Prisma-моделей (числовые цены вместо Decimal),
-// чтобы при подключении БД (этап 2) подмена была тривиальной.
-
-export type Tariff = 'HOURLY' | 'HALF_DAY' | 'FULL_DAY' | 'WEEKEND' | 'CUSTOM';
-export type DiscountType = 'NONE' | 'PERCENT' | 'AMOUNT';
-export type BookingStatus = 'NEW' | 'CONFIRMED' | 'PREPAID' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
-export type BookingSource = 'ADMIN' | 'PHONE' | 'WHATSAPP' | 'INSTAGRAM' | 'WIDGET';
-
-export interface MockResource {
-  id: string;
-  kind: 'COMPLEX' | 'KARAOKE';
-  nameRu: string;
-  nameKk: string;
-  capacity: number;
-  color: string;
-  photos: string[];
-  isActive: boolean;
-  sortOrder: number;
-  floors: string[];
-  hasKaraoke: boolean;
-  hasFinnishSauna: boolean;
-  hasHammam: boolean;
-  hasPool: boolean;
-  hasBanquet: boolean;
-  restRooms: number;
-  hasKitchen: boolean;
-  hourlyPrice: number;
-  minHours: number;
-  halfDayPrice: number | null;
-  fullDayPrice: number | null;
-  weekendPrice: number | null;
-  weekdayMinDeposit: number | null;
-  priceNote?: string;
-}
-
-export interface MockAddon {
-  id: string;
-  nameRu: string;
-  nameKk: string;
-  price: number;
-  unit: 'PER_EVENT' | 'PER_ITEM';
-}
-
-export interface MockClient {
-  id: string;
-  name: string;
-  phone: string;
-  note?: string;
-  tags?: string[];
-  dateOfBirth?: Date; // день рождения (календарная дата, UTC-полночь)
-}
-
-export type Role = 'ADMIN' | 'MANAGER';
-
-export interface MockUser {
-  id: string;
-  name: string;
-  phone: string;
-  email?: string;
-  role: Role;
-  isActive: boolean;
-}
-
-export interface MockBooking {
-  id: string;
-  resourceId: string;
-  clientId: string;
-  startAt: Date;
-  endAt: Date;
-  status: BookingStatus;
-  source: BookingSource;
-  tariff: Tariff;
-  guests: number;
-  total: number;
-  deposit: number;
-  prepayment: number;
-  discountType: DiscountType;
-  discountValue: number;
-  comment?: string;
-  addons: {addonId: string; qty: number; priceAtBooking: number}[];
-}
+// Демо-данные для prisma/seed.ts (реальные 5 объектов из ТЗ §5.8 + демо-брони).
+// DTO-типы приложения живут в lib/types.ts, enum-значения — в lib/enums.ts.
 
 /** Стеночное время Almaty → инстант. */
 const at = (y: number, m: number, d: number, h: number, min = 0) =>

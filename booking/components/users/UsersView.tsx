@@ -4,7 +4,7 @@ import {useState} from 'react';
 import {useTranslations} from 'next-intl';
 import {useRouter} from '@/i18n/navigation';
 import {setUserActiveAction, resetPasswordAction} from '@/lib/actions';
-import type {MockUser} from '@/lib/mock-data';
+import type {MockUser} from '@/lib/types';
 import UserDialog from './UserDialog';
 
 export default function UsersView({users}: {users: MockUser[]}) {

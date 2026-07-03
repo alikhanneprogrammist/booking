@@ -4,7 +4,7 @@ import {useState} from 'react';
 import {useTranslations} from 'next-intl';
 import {saveClient} from '@/lib/actions';
 import {toInputValue, parseInputDate} from '@/lib/birthdays';
-import type {MockClient} from '@/lib/mock-data';
+import type {MockClient} from '@/lib/types';
 import {dialogField, dialogLabel} from '@/lib/ui';
 
 export default function ClientDialog({

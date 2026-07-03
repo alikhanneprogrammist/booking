@@ -4,7 +4,7 @@ import type {CSSProperties} from 'react';
 import {useTranslations} from 'next-intl';
 import {fmtTime} from '@/lib/calendar';
 import {STATUS_BG} from './StatusBadge';
-import type {MockBooking, MockResource, MockClient, MockAddon} from '@/lib/mock-data';
+import type {MockBooking, MockResource, MockClient, MockAddon} from '@/lib/types';
 
 /** Цветной блок брони на таймлайне (ТЗ §4.4): цвет — от объекта, бэйдж — статус. */
 export default function BookingBlock({

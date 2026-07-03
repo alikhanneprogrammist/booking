@@ -5,7 +5,7 @@ import {useTranslations} from 'next-intl';
 import {
   HOUR_PX, fmtHour, minutesFromDayStart, addDays,
 } from '@/lib/calendar';
-import type {MockResource, MockBooking, MockClient, MockAddon} from '@/lib/mock-data';
+import type {MockResource, MockBooking, MockClient, MockAddon} from '@/lib/types';
 import BookingBlock from './BookingBlock';
 
 const KINDS = ['COMPLEX', 'KARAOKE'] as const;

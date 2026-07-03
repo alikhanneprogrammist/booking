@@ -3,7 +3,7 @@
 import {useMemo, useState} from 'react';
 import {useLocale, useTranslations} from 'next-intl';
 import {Link} from '@/i18n/navigation';
-import type {MockClient} from '@/lib/mock-data';
+import type {MockClient} from '@/lib/types';
 import {
   upcomingBirthdays, birthdaysInMonth, formatBirthday, ageTurning, type Today,
 } from '@/lib/birthdays';

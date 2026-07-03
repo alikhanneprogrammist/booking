@@ -3,7 +3,7 @@
 import {useState} from 'react';
 import {useTranslations} from 'next-intl';
 import {saveUser} from '@/lib/actions';
-import type {MockUser} from '@/lib/mock-data';
+import type {MockUser} from '@/lib/types';
 import {dialogField, dialogLabel} from '@/lib/ui';
 
 export default function UserDialog({

@@ -1,7 +1,7 @@
 import {prisma} from './db';
 import type {
   MockResource, MockAddon, MockClient, MockUser, MockBooking,
-} from './mock-data';
+} from './types';
 import {DEFAULT_SETTINGS, SETTINGS_ID, type AppSettings} from './settings';
 
 /**

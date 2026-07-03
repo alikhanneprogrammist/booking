@@ -3,7 +3,7 @@
 import {useMemo, useState} from 'react';
 import {useLocale, useTranslations} from 'next-intl';
 import {Link, useRouter} from '@/i18n/navigation';
-import type {MockBooking, MockResource, MockClient, MockAddon} from '@/lib/mock-data';
+import type {MockBooking, MockResource, MockClient, MockAddon} from '@/lib/types';
 import {kpis, byResource, byEnum, topClients, addonStats, type CountRevenue} from '@/lib/analytics';
 import {sectionHead} from '@/lib/ui';
 

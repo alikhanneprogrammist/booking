@@ -3,7 +3,7 @@
 import {useState} from 'react';
 import {useTranslations} from 'next-intl';
 import {saveAddon} from '@/lib/actions';
-import type {MockAddon} from '@/lib/mock-data';
+import type {MockAddon} from '@/lib/types';
 import {dialogField, dialogLabel} from '@/lib/ui';
 
 export default function AddonDialog({

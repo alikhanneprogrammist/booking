@@ -3,7 +3,7 @@
 import {useMemo, useState} from 'react';
 import {useTranslations} from 'next-intl';
 import {Link, useRouter} from '@/i18n/navigation';
-import type {MockClient} from '@/lib/mock-data';
+import type {MockClient} from '@/lib/types';
 import ClientDialog from './ClientDialog';
 
 export default function ClientsView({

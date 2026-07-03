@@ -5,13 +5,12 @@ import {useLocale, useTranslations} from 'next-intl';
 import {useRouter} from '@/i18n/navigation';
 import {TIMEZONE} from '@/lib/time';
 import {almatyDayStart, addDays, weekStart, fmtDayHeader, fmtDayNum, toLocalInput} from '@/lib/calendar';
-import type {MockResource, MockAddon, MockClient, MockBooking, BookingStatus} from '@/lib/mock-data';
+import type {MockResource, MockAddon, MockClient, MockBooking} from '@/lib/types';
+import {BOOKING_STATUSES} from '@/lib/enums';
 import ResourceTimeline from './ResourceTimeline';
 import WeekTimeline from './WeekTimeline';
 import BookingDialog from './BookingDialog';
 import {STATUS_DOT} from './StatusBadge';
-
-const LEGEND_STATUSES: BookingStatus[] = ['NEW', 'CONFIRMED', 'PREPAID', 'COMPLETED', 'CANCELLED', 'NO_SHOW'];
 
 type Dialog =
   | {open: false}
@@ -116,7 +115,7 @@ export default function CalendarView({
 
       {/* Легенда статусов: фон блока брони = цвет статуса */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border px-4 py-1.5 text-[11px] text-muted">
-        {LEGEND_STATUSES.map((s) => (
+        {BOOKING_STATUSES.map((s) => (
           <span key={s} className="flex items-center gap-1">
             <span className={`h-2 w-2 rounded-full ${STATUS_DOT[s]}`} />
             {ts(s)}

@@ -3,7 +3,7 @@
 // CANCELLED и NO_SHOW («упущенная» выручка) исключаются вызывающим кодом ВЕЗДЕ,
 // кроме разбивки по статусам (byEnum 'status'), где они помечаются отдельно.
 
-import type {MockBooking} from './mock-data';
+import type {MockBooking} from './types';
 
 export interface Kpis {
   count: number;

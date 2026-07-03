@@ -6,10 +6,12 @@ import {durationHours, isWeekend} from './time';
  * (FR-PRICE-3). Тарифы караоке часто = депозит по кухне/бару.
  */
 
-export type Tariff = 'HOURLY' | 'HALF_DAY' | 'FULL_DAY' | 'WEEKEND' | 'CUSTOM';
+import type {Tariff, DiscountType} from './enums';
+
+// Ре-экспорт для существующих импортов из pricing (типы живут в lib/enums.ts).
+export type {Tariff, DiscountType};
 
 /** Скидка по брони: тип и значение (% либо фикс. сумма ₸). */
-export type DiscountType = 'NONE' | 'PERCENT' | 'AMOUNT';
 export interface Discount {
   type: DiscountType;
   value: number;

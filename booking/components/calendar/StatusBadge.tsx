@@ -1,7 +1,7 @@
 'use client';
 
 import {useTranslations} from 'next-intl';
-import type {BookingStatus} from '@/lib/mock-data';
+import type {BookingStatus} from '@/lib/types';
 
 const STYLES: Record<BookingStatus, string> = {
   NEW: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300',

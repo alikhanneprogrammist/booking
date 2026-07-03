@@ -11,7 +11,7 @@ import {
   createBooking, updateBooking, cancelBooking, BookingError, type BookingInput,
 } from './bookings';
 import {toClient, toResource, toAddon, toUser} from './queries';
-import type {MockResource, MockAddon} from './mock-data';
+import type {MockResource, MockAddon} from './types';
 import {SETTINGS_ID, type AppSettings} from './settings';
 
 /**

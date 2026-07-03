@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import {kpis, byResource, byEnum, topClients, addonStats} from '@/lib/analytics';
-import type {MockBooking} from '@/lib/mock-data';
+import type {MockBooking} from '@/lib/types';
 
 let seq = 0;
 function mk(over: Partial<MockBooking>): MockBooking {

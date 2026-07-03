@@ -5,7 +5,7 @@ import {useLocale, useTranslations} from 'next-intl';
 import {Link, useRouter} from '@/i18n/navigation';
 import {removeClient} from '@/lib/actions';
 import {formatBirthday} from '@/lib/birthdays';
-import type {MockClient, MockBooking, MockResource} from '@/lib/mock-data';
+import type {MockClient, MockBooking, MockResource} from '@/lib/types';
 import {TIMEZONE} from '@/lib/time';
 import {fmtTime} from '@/lib/calendar';
 import StatusBadge from '@/components/calendar/StatusBadge';

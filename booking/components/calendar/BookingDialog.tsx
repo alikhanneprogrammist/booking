@@ -2,20 +2,17 @@
 
 import {useEffect, useMemo, useRef, useState} from 'react';
 import {useTranslations} from 'next-intl';
-import {useRouter} from '@/i18n/navigation';
 import {computePrice} from '@/lib/pricing';
 import {durationHours} from '@/lib/time';
 import {toLocalInput, fromLocalInput, rangesOverlap, nextDayStr, dayDiffStr} from '@/lib/calendar';
-import {saveBooking, cancelBookingAction, saveClient} from '@/lib/actions';
+import {saveBooking, cancelBookingAction} from '@/lib/actions';
 import {dialogField, dialogLabel} from '@/lib/ui';
+import {TARIFFS, DISCOUNT_TYPES, BOOKING_STATUSES, BOOKING_SOURCES} from '@/lib/enums';
 import type {
   MockResource, MockAddon, MockClient, MockBooking, Tariff, BookingStatus, BookingSource, DiscountType,
-} from '@/lib/mock-data';
-
-const TARIFFS: Tariff[] = ['HOURLY', 'HALF_DAY', 'FULL_DAY', 'WEEKEND', 'CUSTOM'];
-const DISCOUNT_TYPES: DiscountType[] = ['NONE', 'PERCENT', 'AMOUNT'];
-const STATUSES: BookingStatus[] = ['NEW', 'CONFIRMED', 'PREPAID', 'COMPLETED', 'CANCELLED', 'NO_SHOW'];
-const SOURCES: BookingSource[] = ['ADMIN', 'PHONE', 'WHATSAPP', 'INSTAGRAM', 'WIDGET'];
+} from '@/lib/types';
+import ClientPicker from './ClientPicker';
+import ResourceSummary from './ResourceSummary';
 
 export default function BookingDialog({
   mode, booking, prefill, resources, addons, clients, bookings, locale,
@@ -33,13 +30,10 @@ export default function BookingDialog({
   onSaved: () => void;
   onClose: () => void;
 }) {
-  const router = useRouter();
   const tb = useTranslations('booking');
   const tt = useTranslations('tariff');
   const ts = useTranslations('status');
   const tsrc = useTranslations('source');
-  const ta = useTranslations('amenity');
-  const tc = useTranslations('clients');
 
   const init = booking;
   const defaultStart = init?.startAt ?? prefill?.startAt ?? new Date();
@@ -47,11 +41,6 @@ export default function BookingDialog({
 
   const [resourceId, setResourceId] = useState(init?.resourceId ?? prefill?.resourceId ?? resources[0].id);
   const [clientId, setClientId] = useState(init?.clientId ?? clients[0]?.id ?? '');
-  // Комбобокс клиента: поиск по имени/телефону вместо <select> (клиентов станет много).
-  const [clientQuery, setClientQuery] = useState(
-    () => clients.find((c) => c.id === (init?.clientId ?? clients[0]?.id))?.name ?? '',
-  );
-  const [clientOpen, setClientOpen] = useState(false);
   // Дата брони + время начала/конца (набор с клавиатуры). Конец ≤ начала → следующий день.
   const [date, setDate] = useState(() => toLocalInput(defaultStart).slice(0, 10));
   const [startTime, setStartTime] = useState(() => toLocalInput(defaultStart).slice(11, 16));
@@ -81,48 +70,6 @@ export default function BookingDialog({
   const [comment, setComment] = useState(init?.comment ?? '');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-
-  // Инлайн-создание клиента (FR-CLI-4)
-  const [newOpen, setNewOpen] = useState(false);
-  const [nName, setNName] = useState('');
-  const [nPhone, setNPhone] = useState('');
-  const [nErr, setNErr] = useState<string | null>(null);
-
-  async function createClient() {
-    setNErr(null);
-    const res = await saveClient({name: nName.trim(), phone: nPhone.trim()});
-    if (!res.ok) {
-      setNErr(tc('duplicatePhone')); // единственная ожидаемая ошибка — занятый телефон
-      return;
-    }
-    setClientId(res.client.id);
-    setClientQuery(res.client.name);
-    setNewOpen(false);
-    setNName('');
-    setNPhone('');
-    // Подтягиваем нового клиента в список (перечитываем серверные данные).
-    router.refresh();
-  }
-
-  // Подстрочный поиск клиента: по имени и по цифрам телефона; показываем первые 8.
-  const clientMatches = useMemo(() => {
-    const q = clientQuery.trim().toLowerCase();
-    const qDigits = q.replace(/\D/g, '');
-    const list = !q
-      ? clients
-      : clients.filter(
-          (c) =>
-            c.name.toLowerCase().includes(q) ||
-            (qDigits !== '' && c.phone.replace(/\D/g, '').includes(qDigits)),
-        );
-    return list.slice(0, 8);
-  }, [clients, clientQuery]);
-
-  function pickClient(c: MockClient) {
-    setClientId(c.id);
-    setClientQuery(c.name);
-    setClientOpen(false);
-  }
 
   const resource = resources.find((r) => r.id === resourceId)!;
   // Тот же минимум, что применит сервер (lib/bookings.ts): max(объектный, глобальный).
@@ -158,15 +105,6 @@ export default function BookingDialog({
 
   const name = (r: MockResource) => (locale === 'kk' ? r.nameKk : r.nameRu);
   const aName = (a: MockAddon) => (locale === 'kk' ? a.nameKk : a.nameRu);
-
-  const amenities: string[] = [];
-  if (resource.hasKaraoke) amenities.push(ta('karaoke'));
-  if (resource.hasFinnishSauna) amenities.push(ta('sauna'));
-  if (resource.hasHammam) amenities.push(ta('hammam'));
-  if (resource.hasPool) amenities.push(ta('pool'));
-  if (resource.hasBanquet) amenities.push(ta('banquet'));
-  if (resource.restRooms > 0) amenities.push(ta('rooms', {n: resource.restRooms}));
-  if (resource.hasKitchen) amenities.push(ta('kitchen'));
 
   async function handleSave() {
     setError(null);
@@ -241,29 +179,7 @@ export default function BookingDialog({
         </div>
 
         {/* Состав объекта (ТЗ §4.5 FR-BOOK-2) */}
-        <div className="mb-3 rounded-lg border border-border bg-subtle p-3">
-          <div className="mb-1.5 flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full" style={{backgroundColor: resource.color}} />
-            <span className="text-sm font-medium">{name(resource)}</span>
-            <span className="text-xs text-muted">· {resource.capacity}</span>
-          </div>
-          <div className="mb-2 text-xs font-medium uppercase text-muted">{tb('composition')}</div>
-          <ul className="mb-2 space-y-0.5 text-xs">
-            {resource.floors.map((f, i) => <li key={i}>· {f}</li>)}
-          </ul>
-          <div className="flex flex-wrap gap-1">
-            {amenities.map((a) => (
-              <span key={a} className="rounded bg-card px-1.5 py-0.5 text-[10px] text-muted ring-1 ring-border">{a}</span>
-            ))}
-          </div>
-          {/* Тарифы (ТЗ §4.9) */}
-          <div className="mt-2 text-[11px] text-muted">
-            {tb('tariffs')}: {resource.hourlyPrice.toLocaleString()}/ч (мин {effectiveMinHours}ч)
-            {resource.halfDayPrice ? ` · 12ч ${resource.halfDayPrice.toLocaleString()}` : ''}
-            {resource.fullDayPrice ? ` · 24ч ${resource.fullDayPrice.toLocaleString()}` : ''}
-            {resource.weekendPrice ? ` · вых ${resource.weekendPrice.toLocaleString()}` : ''}
-          </div>
-        </div>
+        <ResourceSummary resource={resource} effectiveMinHours={effectiveMinHours} locale={locale} />
 
         <div className="grid grid-cols-2 gap-3">
           <label className={labelCls}>
@@ -272,65 +188,12 @@ export default function BookingDialog({
               {resources.map((r) => <option key={r.id} value={r.id}>{name(r)}</option>)}
             </select>
           </label>
-          <div className={labelCls}>
-            <span className="flex items-center justify-between">
-              {tb('client')}
-              <button type="button" className="text-[10px] text-blue-600 hover:underline" onClick={() => setNewOpen((v) => !v)}>
-                {tb('newClient')}
-              </button>
-            </span>
-            {newOpen ? (
-              <div className="flex flex-col gap-1.5 rounded-md border border-border bg-subtle p-2">
-                <input className={fieldCls} placeholder={tb('newClientName')} value={nName} onChange={(e) => setNName(e.target.value)} />
-                <input className={fieldCls} placeholder={tb('newClientPhone')} value={nPhone} onChange={(e) => setNPhone(e.target.value)} />
-                {nErr && <span className="text-[11px] text-red-600">{nErr}</span>}
-                <button
-                  type="button"
-                  disabled={!nName.trim() || !nPhone.trim()}
-                  onClick={createClient}
-                  className="rounded-md bg-primary px-2 py-1 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-                >
-                  {tb('addClient')}
-                </button>
-              </div>
-            ) : (
-              <div className="relative">
-                <input
-                  className={`${fieldCls} w-full`}
-                  value={clientQuery}
-                  placeholder={tb('clientSearch')}
-                  onChange={(e) => {
-                    setClientQuery(e.target.value);
-                    setClientId(''); // выбор обязателен явно — сброс до клика по подсказке
-                    setClientOpen(true);
-                  }}
-                  onFocus={() => setClientOpen(true)}
-                  onBlur={() => setClientOpen(false)}
-                />
-                {clientOpen && clientMatches.length > 0 && (
-                  <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-44 overflow-y-auto rounded-md border border-border bg-card shadow-lg">
-                    {clientMatches.map((c) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        // onMouseDown: срабатывает ДО blur инпута, иначе список закроется раньше клика
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          pickClient(c);
-                        }}
-                        className={`flex w-full items-center justify-between px-2.5 py-1.5 text-left text-sm hover:bg-subtle ${
-                          c.id === clientId ? 'bg-subtle' : ''
-                        }`}
-                      >
-                        <span className="truncate">{c.name}</span>
-                        <span className="ml-2 shrink-0 text-xs text-muted">{c.phone}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          <ClientPicker
+            clients={clients}
+            value={clientId}
+            initialName={clients.find((c) => c.id === clientId)?.name}
+            onChange={setClientId}
+          />
           <label className={labelCls}>
             {tb('date')}
             <input type="date" className={fieldCls} value={date} onChange={(e) => setDate(e.target.value)} />
@@ -368,13 +231,13 @@ export default function BookingDialog({
           <label className={labelCls}>
             {tb('status')}
             <select className={fieldCls} value={status} onChange={(e) => setStatus(e.target.value as BookingStatus)}>
-              {STATUSES.map((x) => <option key={x} value={x}>{ts(x)}</option>)}
+              {BOOKING_STATUSES.map((x) => <option key={x} value={x}>{ts(x)}</option>)}
             </select>
           </label>
           <label className={labelCls}>
             {tb('source')}
             <select className={fieldCls} value={source} onChange={(e) => setSource(e.target.value as BookingSource)}>
-              {SOURCES.map((x) => <option key={x} value={x}>{tsrc(x)}</option>)}
+              {BOOKING_SOURCES.map((x) => <option key={x} value={x}>{tsrc(x)}</option>)}
             </select>
           </label>
         </div>

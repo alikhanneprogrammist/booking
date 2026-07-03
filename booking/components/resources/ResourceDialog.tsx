@@ -3,7 +3,7 @@
 import {useState} from 'react';
 import {useTranslations} from 'next-intl';
 import {saveResource} from '@/lib/actions';
-import type {MockResource} from '@/lib/mock-data';
+import type {MockResource} from '@/lib/types';
 import {dialogField, dialogLabel} from '@/lib/ui';
 
 const numOrNull = (s: string) => (s.trim() === '' ? null : Number(s));

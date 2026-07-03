@@ -4,7 +4,7 @@ import {useState} from 'react';
 import {useLocale, useTranslations} from 'next-intl';
 import {useRouter} from '@/i18n/navigation';
 import {setResourceActiveAction, removeResource, removeAddon} from '@/lib/actions';
-import type {MockResource, MockAddon} from '@/lib/mock-data';
+import type {MockResource, MockAddon} from '@/lib/types';
 import ResourceDialog from './ResourceDialog';
 import AddonDialog from './AddonDialog';
 
