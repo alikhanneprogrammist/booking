@@ -34,7 +34,8 @@ export default async function CalendarPage({
   ]);
 
   return (
-    <div className="h-screen">
+    // На мобильном вычитаем высоту фикс. верхней полосы (h-12=3rem); на md+ — полный экран.
+    <div className="h-[calc(100dvh-3rem)] md:h-screen">
       <CalendarView
         resources={resources}
         addons={addons}

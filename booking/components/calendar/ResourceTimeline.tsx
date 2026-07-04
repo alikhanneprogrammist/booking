@@ -62,9 +62,9 @@ export default function ResourceTimeline({
   }, [dayStart]);
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col overflow-x-auto">
       {/* Заголовок: группы + объекты */}
-      <div className="border-b border-border">
+      <div className="min-w-[560px] border-b border-border">
         <div className="flex">
           <div className="w-14 shrink-0" />
           {groups.map((g) => (
@@ -89,7 +89,7 @@ export default function ResourceTimeline({
       </div>
 
       {/* Тело: сетка часов + колонки */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto">
+      <div ref={scrollRef} className="min-w-[560px] flex-1 overflow-y-auto">
         <div className="flex" style={{height: gridHours * HOUR_PX}}>
           {/* Часовая шкала (часы ≥24 — следующий день) */}
           <div className="relative w-14 shrink-0">

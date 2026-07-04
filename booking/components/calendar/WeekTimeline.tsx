@@ -52,9 +52,9 @@ export default function WeekTimeline({
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col overflow-x-auto">
       {/* Заголовок дней */}
-      <div className="flex border-b border-border">
+      <div className="flex min-w-[640px] border-b border-border">
         <div className="w-14 shrink-0" />
         {days.map((d) => {
           const isToday = now >= d && now < addDays(d, 1);
@@ -67,7 +67,7 @@ export default function WeekTimeline({
         })}
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="min-w-[640px] flex-1 overflow-y-auto">
         <div className="flex" style={{height: 24 * HOUR_PX}}>
           <div className="relative w-14 shrink-0">
             {HOURS.map((h) => (
