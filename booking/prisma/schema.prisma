@@ -175,6 +175,7 @@ model Booking {
 
   @@index([resourceId, startAt, endAt])
   @@index([clientId])
+  @@index([createdById])
 }
 
 // ───────────────────────── Settings — настройки заведения ──────────────
@@ -221,4 +222,7 @@ model BookingAddon {
   addon          ServiceAddon @relation(fields: [addonId], references: [id])
   qty            Int          @default(1)
   priceAtBooking Decimal      @db.Decimal(12, 2)
+
+  @@index([bookingId])
+  @@index([addonId])
 }

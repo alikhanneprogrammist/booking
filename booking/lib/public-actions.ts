@@ -41,9 +41,18 @@ export type PublicBookingError =
 
 function clientIp(): string {
   const h = headers();
+  // За обратным прокси (Caddy) доверяем ТОЛЬКО заголовку, который он сам проставляет:
+  // X-Real-IP = реальный TCP-пир (см. deploy/Caddyfile header_up X-Real-IP {remote_host}).
+  // Левый элемент X-Forwarded-For подделывается клиентом, поэтому его НЕ берём;
+  // как запасной вариант — КРАЙНИЙ ПРАВЫЙ хоп XFF (добавленный ближайшим прокси).
+  const real = h.get('x-real-ip')?.trim();
+  if (real) return real;
   const fwd = h.get('x-forwarded-for');
-  if (fwd) return fwd.split(',')[0].trim();
-  return h.get('x-real-ip') ?? 'unknown';
+  if (fwd) {
+    const hops = fwd.split(',').map((s) => s.trim()).filter(Boolean);
+    if (hops.length) return hops[hops.length - 1];
+  }
+  return 'unknown';
 }
 
 /** Гарантирует существование служебного создателя заявок (на случай без seed). */

@@ -8,5 +8,18 @@
 # X-Forwarded-* заголовки для Auth.js Caddy проставляет автоматически.
 
 booking.office2020.kz {
-	reverse_proxy app:3000
+	reverse_proxy app:3000 {
+		# Реальный IP клиента в доверенный заголовок — на него опирается
+		# rate-limit публичной формы /book (lib/public-actions.ts clientIp).
+		# {remote_host} перезаписывает любой присланный клиентом X-Real-IP.
+		header_up X-Real-IP {remote_host}
+	}
+
+	# Базовые заголовки безопасности (HSTS Caddy добавляет сам на TLS-сайтах).
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
 }

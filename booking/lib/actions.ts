@@ -372,8 +372,18 @@ export async function saveSettings(input: Partial<AppSettings>) {
 
   const data: Record<string, string | number | null> = {};
   if ('companyName' in input) data.companyName = (input.companyName ?? '').trim() || 'OFFICE 2020';
-  // data-URL логотипа не триммим (длинная строка); '' → NULL.
-  if ('logoUrl' in input) data.logoUrl = (input.logoUrl ?? '') === '' ? null : input.logoUrl!;
+  // data-URL логотипа: серверная валидация (клиентский лимит обходится прямым вызовом).
+  // Разрешаем только растровые image data-URL (без svg — он может нести скрипты), ≤600КБ.
+  if ('logoUrl' in input) {
+    const v = input.logoUrl ?? '';
+    if (v === '') {
+      data.logoUrl = null;
+    } else if (/^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(v) && v.length <= 600_000) {
+      data.logoUrl = v;
+    } else {
+      return {ok: false as const, error: 'INVALID_LOGO' as const};
+    }
+  }
   if ('minBookingHours' in input) data.minBookingHours = clamp(input.minBookingHours ?? 3, 1, 24);
   if ('prepaymentPercent' in input) data.prepaymentPercent = clamp(input.prepaymentPercent ?? 0, 0, 100);
   for (const k of SETTINGS_STR_KEYS) {

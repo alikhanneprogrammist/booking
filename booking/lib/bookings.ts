@@ -11,7 +11,9 @@ export type BookingErrorCode =
   | 'INVALID_RANGE'
   | 'MIN_DURATION'
   | 'OVERLAP'
-  | 'RESOURCE_NOT_FOUND';
+  | 'RESOURCE_NOT_FOUND'
+  | 'CLIENT_NOT_FOUND'
+  | 'ADDON_NOT_FOUND';
 
 export class BookingError extends Error {
   constructor(
@@ -38,6 +40,25 @@ function isOverlapDbError(e: unknown): boolean {
     msg.includes('exclusion constraint') ||
     msg.includes('23P01')
   );
+}
+
+/** Нарушение внешнего ключа (P2003) — клиент/услуга удалены между чтением и записью. */
+function isFkError(e: unknown): boolean {
+  return e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2003';
+}
+
+/** Проверяет существование клиента и (если заданы) доп.услуг — чтобы вместо
+ * необработанного P2003 (→ 500) вернуть чистый BookingError, как для resourceId. */
+async function assertRefs(clientId: string | undefined, addonIds: string[]) {
+  if (clientId) {
+    const client = await prisma.client.findUnique({where: {id: clientId}, select: {id: true}});
+    if (!client) throw new BookingError('CLIENT_NOT_FOUND', 'Клиент не найден');
+  }
+  const uniq = Array.from(new Set(addonIds));
+  if (uniq.length) {
+    const found = await prisma.serviceAddon.count({where: {id: {in: uniq}}});
+    if (found !== uniq.length) throw new BookingError('ADDON_NOT_FOUND', 'Доп.услуга не найдена');
+  }
 }
 
 // ───────────────────────── Валидация (Zod) ─────────────────────────────
@@ -147,6 +168,7 @@ export async function createBooking(raw: BookingInput, createdById: string) {
 
   const resource = await prisma.resource.findUnique({where: {id: data.resourceId}});
   if (!resource) throw new BookingError('RESOURCE_NOT_FOUND', 'Объект не найден');
+  await assertRefs(data.clientId, data.addons.map((a) => a.addonId));
   const pr = toPricingResource(resource);
 
   // Глобальное правило: минимум брони — не меньше настройки заведения (поверх объектного).
@@ -217,6 +239,8 @@ export async function createBooking(raw: BookingInput, createdById: string) {
     if (isOverlapDbError(e)) {
       throw new BookingError('OVERLAP', 'Объект занят в это время');
     }
+    // Клиент/услугу удалили в гонке между проверкой и вставкой.
+    if (isFkError(e)) throw new BookingError('CLIENT_NOT_FOUND', 'Связанная запись не найдена');
     throw e;
   }
 }
@@ -228,8 +252,10 @@ export async function updateBooking(id: string, rawInput: Partial<BookingInput>)
   // ВАЖНО: .partial() всё равно подставляет дефолты (status=NEW, addons=[]) для
   // отсутствующих ключей — оставляем только то, что реально пришло в патче.
   const parsed = bookingInput.partial().parse(rawInput);
+  // present-and-not-undefined: явный `total: undefined` не должен считаться заданным
+  // (иначе пересчёт total пропускается при смене состава/скидки).
   const raw = Object.fromEntries(
-    Object.entries(parsed).filter(([k]) => k in rawInput),
+    Object.entries(parsed).filter(([k, v]) => k in rawInput && v !== undefined),
   ) as typeof parsed;
 
   const existing = await prisma.booking.findUnique({where: {id}});
@@ -242,6 +268,7 @@ export async function updateBooking(id: string, rawInput: Partial<BookingInput>)
 
   const resource = await prisma.resource.findUnique({where: {id: resourceId}});
   if (!resource) throw new BookingError('RESOURCE_NOT_FOUND', 'Объект не найден');
+  await assertRefs(raw.clientId, raw.addons ? raw.addons.map((a) => a.addonId) : []);
   const pr = toPricingResource(resource);
 
   const settings = await getSettings();
@@ -315,6 +342,7 @@ export async function updateBooking(id: string, rawInput: Partial<BookingInput>)
     });
   } catch (e) {
     if (isOverlapDbError(e)) throw new BookingError('OVERLAP', 'Объект занят в это время');
+    if (isFkError(e)) throw new BookingError('CLIENT_NOT_FOUND', 'Связанная запись не найдена');
     throw e;
   }
 }

@@ -1,6 +1,6 @@
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
 import {prisma} from '@/lib/db';
-import {createBooking, updateBooking, cancelBooking, BookingError} from '@/lib/bookings';
+import {createBooking, updateBooking, cancelBooking} from '@/lib/bookings';
 import {getSettings} from '@/lib/queries';
 
 /**
