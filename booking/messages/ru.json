@@ -272,7 +272,11 @@
     },
     "discountPercentValue": "Скидка, %",
     "discountAmountValue": "Скидка, ₸",
-    "subtotal": "Подытог"
+    "subtotal": "Подытог",
+    "history": "История изменений",
+    "auditCreate": "Создана",
+    "auditUpdate": "Изменена",
+    "auditCancel": "Отменена"
   },
   "auth": {
     "title": "Вход",

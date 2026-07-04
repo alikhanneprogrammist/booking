@@ -126,7 +126,7 @@ export async function saveBooking(input: BookingInput & {id?: string}) {
   if (!user) return {ok: false as const, error: 'FORBIDDEN' as const};
   try {
     if (input.id) {
-      await updateBooking(input.id, input);
+      await updateBooking(input.id, input, user.id);
     } else {
       await createBooking(input, user.id);
     }
@@ -141,10 +141,31 @@ export async function saveBooking(input: BookingInput & {id?: string}) {
 }
 
 export async function cancelBookingAction(id: string) {
-  if (!(await currentUser())) return {ok: false as const, error: 'FORBIDDEN' as const};
-  await cancelBooking(id);
+  const user = await currentUser();
+  if (!user) return {ok: false as const, error: 'FORBIDDEN' as const};
+  await cancelBooking(id, user.id);
   refresh();
   return {ok: true as const};
+}
+
+/** История изменений брони (журнал аудита) — для диалога. Любой сотрудник. */
+export async function getBookingHistory(bookingId: string) {
+  if (!(await currentUser())) return {ok: false as const, error: 'FORBIDDEN' as const};
+  const rows = await prisma.bookingAudit.findMany({
+    where: {bookingId},
+    orderBy: {createdAt: 'desc'},
+    include: {user: {select: {name: true}}},
+  });
+  return {
+    ok: true as const,
+    entries: rows.map((r) => ({
+      id: r.id,
+      action: r.action,
+      userName: r.user.name,
+      at: r.createdAt,
+      changes: (r.changes as {field: string; from: unknown; to: unknown}[] | null) ?? [],
+    })),
+  };
 }
 
 // ───────────────────────── Объекты (ТЗ §4.2 FR-RES) — ADMIN ────────────

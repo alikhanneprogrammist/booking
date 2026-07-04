@@ -272,7 +272,11 @@
     },
     "discountPercentValue": "Жеңілдік, %",
     "discountAmountValue": "Жеңілдік, ₸",
-    "subtotal": "Аралық сома"
+    "subtotal": "Аралық сома",
+    "history": "Өзгерістер тарихы",
+    "auditCreate": "Құрылды",
+    "auditUpdate": "Өзгертілді",
+    "auditCancel": "Бас тартылды"
   },
   "auth": {
     "title": "Кіру",

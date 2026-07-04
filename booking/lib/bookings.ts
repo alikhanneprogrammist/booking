@@ -47,6 +47,15 @@ function isFkError(e: unknown): boolean {
   return e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2003';
 }
 
+/** JSON-safe значение поля для журнала аудита (Date→ISO, Decimal→number). */
+function auditVal(v: unknown): string | number | boolean | null {
+  if (v == null) return null;
+  if (v instanceof Date) return v.toISOString();
+  if (v instanceof Prisma.Decimal) return Number(v);
+  if (typeof v === 'object') return JSON.stringify(v);
+  return v as string | number | boolean;
+}
+
 /** Проверяет существование клиента и (если заданы) доп.услуг — чтобы вместо
  * необработанного P2003 (→ 500) вернуть чистый BookingError, как для resourceId. */
 async function assertRefs(clientId: string | undefined, addonIds: string[]) {
@@ -204,8 +213,8 @@ export async function createBooking(raw: BookingInput, createdById: string) {
         : 0;
 
   try {
-    const booking = await prisma.$transaction((tx) =>
-      tx.booking.create({
+    const booking = await prisma.$transaction(async (tx) => {
+      const b = await tx.booking.create({
         data: {
           resourceId: data.resourceId,
           clientId: data.clientId,
@@ -231,8 +240,11 @@ export async function createBooking(raw: BookingInput, createdById: string) {
           },
         },
         include: {addons: true},
-      }),
-    );
+      });
+      // Журнал: создание брони.
+      await tx.bookingAudit.create({data: {bookingId: b.id, userId: createdById, action: 'CREATE'}});
+      return b;
+    });
     return {booking, price};
   } catch (e) {
     // Барьер БД: маппим constraint в то же сообщение (защита от гонок).
@@ -246,7 +258,7 @@ export async function createBooking(raw: BookingInput, createdById: string) {
 }
 
 /** Редактирование / перенос брони (ТЗ §4.5: смена времени и/или объекта). */
-export async function updateBooking(id: string, rawInput: Partial<BookingInput>) {
+export async function updateBooking(id: string, rawInput: Partial<BookingInput>, actorId?: string) {
   // Частичная Zod-валидация: заданные поля проходят те же проверки, что и при создании
   // (иначе прямой вызов server action мог бы записать отрицательные суммы и т.п.).
   // ВАЖНО: .partial() всё равно подставляет дефолты (status=NEW, addons=[]) для
@@ -302,6 +314,39 @@ export async function updateBooking(id: string, rawInput: Partial<BookingInput>)
     recalcTotal = price.total;
   }
 
+  // Изменяемые скалярные поля отдельно — чтобы посчитать дифф для журнала.
+  const data: Record<string, unknown> = {
+    resourceId,
+    startAt,
+    endAt,
+    tariff,
+    ...(raw.clientId ? {clientId: raw.clientId} : {}),
+    ...(raw.status ? {status: raw.status} : {}),
+    ...(raw.source ? {source: raw.source} : {}),
+    ...(raw.guests != null ? {guests: raw.guests} : {}),
+    ...(raw.total != null ? {total: raw.total} : recalcTotal != null ? {total: recalcTotal} : {}),
+    ...(raw.deposit != null ? {deposit: raw.deposit} : {}),
+    ...(raw.prepayment != null ? {prepayment: raw.prepayment} : {}),
+    ...(raw.discountType != null ? {discountType: raw.discountType} : {}),
+    ...(raw.discountValue != null ? {discountValue: raw.discountValue} : {}),
+    ...(raw.comment !== undefined ? {comment: raw.comment} : {}),
+  };
+
+  // Дифф изменённых полей для журнала аудита (сравниваем с текущей записью).
+  const changes: {field: string; from: string | number | boolean | null; to: string | number | boolean | null}[] = [];
+  const ex = existing as unknown as Record<string, unknown>;
+  for (const key of Object.keys(data)) {
+    const from = auditVal(ex[key]);
+    const to = auditVal(data[key]);
+    if (from !== to) changes.push({field: key, from, to});
+  }
+  if (raw.addons !== undefined) {
+    const oldCount = await prisma.bookingAddon.count({where: {bookingId: id}});
+    if (oldCount !== raw.addons.length) {
+      changes.push({field: 'addons', from: oldCount, to: raw.addons.length});
+    }
+  }
+
   try {
     // Транзакция: при правке состава доп.услуг заменяем строки целиком
     // (deleteMany + create), иначе total разойдётся с фактическими addons.
@@ -309,23 +354,10 @@ export async function updateBooking(id: string, rawInput: Partial<BookingInput>)
       if (raw.addons !== undefined) {
         await tx.bookingAddon.deleteMany({where: {bookingId: id}});
       }
-      return tx.booking.update({
+      const updated = await tx.booking.update({
         where: {id},
         data: {
-          resourceId,
-          startAt,
-          endAt,
-          tariff,
-          ...(raw.clientId ? {clientId: raw.clientId} : {}),
-          ...(raw.status ? {status: raw.status} : {}),
-          ...(raw.source ? {source: raw.source} : {}),
-          ...(raw.guests != null ? {guests: raw.guests} : {}),
-          ...(raw.total != null ? {total: raw.total} : recalcTotal != null ? {total: recalcTotal} : {}),
-          ...(raw.deposit != null ? {deposit: raw.deposit} : {}),
-          ...(raw.prepayment != null ? {prepayment: raw.prepayment} : {}),
-          ...(raw.discountType != null ? {discountType: raw.discountType} : {}),
-          ...(raw.discountValue != null ? {discountValue: raw.discountValue} : {}),
-          ...(raw.comment !== undefined ? {comment: raw.comment} : {}),
+          ...data,
           ...(raw.addons !== undefined
             ? {
                 addons: {
@@ -339,6 +371,13 @@ export async function updateBooking(id: string, rawInput: Partial<BookingInput>)
             : {}),
         },
       });
+      // Журнал: пишем только если известен автор и что-то реально изменилось.
+      if (actorId && changes.length) {
+        await tx.bookingAudit.create({
+          data: {bookingId: id, userId: actorId, action: 'UPDATE', changes: changes as Prisma.InputJsonValue},
+        });
+      }
+      return updated;
     });
   } catch (e) {
     if (isOverlapDbError(e)) throw new BookingError('OVERLAP', 'Объект занят в это время');
@@ -348,7 +387,11 @@ export async function updateBooking(id: string, rawInput: Partial<BookingInput>)
 }
 
 /** Отмена брони (ТЗ §4.5: статус CANCELLED, освобождает время). */
-export async function cancelBooking(id: string) {
-  return prisma.booking.update({where: {id}, data: {status: 'CANCELLED'}});
+export async function cancelBooking(id: string, actorId?: string) {
+  return prisma.$transaction(async (tx) => {
+    const b = await tx.booking.update({where: {id}, data: {status: 'CANCELLED'}});
+    if (actorId) await tx.bookingAudit.create({data: {bookingId: id, userId: actorId, action: 'CANCEL'}});
+    return b;
+  });
 }
 

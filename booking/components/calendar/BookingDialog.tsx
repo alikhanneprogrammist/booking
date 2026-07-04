@@ -5,7 +5,7 @@ import {useTranslations} from 'next-intl';
 import {computePrice} from '@/lib/pricing';
 import {durationHours, intervalsOverlap} from '@/lib/time';
 import {toLocalInput, fromLocalInput, nextDayStr, dayDiffStr} from '@/lib/calendar';
-import {saveBooking, cancelBookingAction} from '@/lib/actions';
+import {saveBooking, cancelBookingAction, getBookingHistory} from '@/lib/actions';
 import {dialogField, dialogLabel} from '@/lib/ui';
 import {TARIFFS, DISCOUNT_TYPES, BOOKING_STATUSES, BOOKING_SOURCES} from '@/lib/enums';
 import type {
@@ -70,6 +70,27 @@ export default function BookingDialog({
   const [comment, setComment] = useState(init?.comment ?? '');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Журнал изменений (edit-режим) — подгружаем при открытии брони.
+  type AuditEntry = {
+    id: string;
+    action: 'CREATE' | 'UPDATE' | 'CANCEL';
+    userName: string;
+    at: string | Date;
+    changes: {field: string; from: unknown; to: unknown}[];
+  };
+  const [history, setHistory] = useState<AuditEntry[]>([]);
+  useEffect(() => {
+    if (mode !== 'edit' || !booking?.id) return;
+    let alive = true;
+    getBookingHistory(booking.id).then((r) => {
+      if (alive && r.ok) setHistory(r.entries as AuditEntry[]);
+    });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [booking?.id]);
 
   const resource = resources.find((r) => r.id === resourceId)!;
   // Тот же минимум, что применит сервер (lib/bookings.ts): max(объектный, глобальный).
@@ -161,6 +182,30 @@ export default function BookingDialog({
     setSaving(false);
     onSaved();
   }
+
+  // Форматирование строк журнала: даты/время Almaty, значения полей человекочитаемо.
+  const fmtAt = (d: string | Date) =>
+    new Intl.DateTimeFormat(locale, {
+      timeZone: 'Asia/Almaty', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+    }).format(new Date(d));
+  const FIELD_LABEL: Record<string, string> = {
+    resourceId: 'resource', clientId: 'client', startAt: 'start', endAt: 'end',
+    tariff: 'tariff', guests: 'guests', total: 'total', deposit: 'deposit',
+    prepayment: 'prepayment', status: 'status', source: 'source',
+    discountType: 'discount', discountValue: 'discount', comment: 'comment', addons: 'addons',
+  };
+  const fmtVal = (field: string, v: unknown): string => {
+    if (v == null || v === '') return '—';
+    if (field === 'status') return ts(String(v));
+    if (field === 'source') return tsrc(String(v));
+    if (field === 'tariff') return tt(String(v));
+    if (field === 'discountType') return tb(`discountKind.${v}`);
+    if (field === 'startAt' || field === 'endAt') return fmtAt(String(v));
+    if (field === 'resourceId') return name(resources.find((r) => r.id === v) ?? resource);
+    if (field === 'clientId') return clients.find((c) => c.id === v)?.name ?? String(v);
+    if (typeof v === 'number') return v.toLocaleString();
+    return String(v);
+  };
 
   const fieldCls = dialogField;
   const labelCls = dialogLabel;
@@ -325,6 +370,32 @@ export default function BookingDialog({
         )}
         {error && (
           <div role="alert" className="mt-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950/40">{error}</div>
+        )}
+
+        {/* Журнал изменений (кто/когда/что менял) */}
+        {mode === 'edit' && history.length > 0 && (
+          <div className="mt-4 border-t border-border pt-3">
+            <div className="mb-2 text-xs font-medium uppercase text-muted">{tb('history')}</div>
+            <ul className="space-y-1.5 text-xs">
+              {history.map((h) => (
+                <li key={h.id} className="text-muted">
+                  <span className="font-medium text-foreground">
+                    {h.action === 'CREATE' ? tb('auditCreate') : h.action === 'CANCEL' ? tb('auditCancel') : tb('auditUpdate')}
+                  </span>
+                  {' · '}{h.userName}{' · '}{fmtAt(h.at)}
+                  {h.changes.length > 0 && (
+                    <ul className="ml-3 mt-0.5 list-disc space-y-0.5">
+                      {h.changes.map((c, i) => (
+                        <li key={i}>
+                          {tb(FIELD_LABEL[c.field] ?? c.field)}: {fmtVal(c.field, c.from)} → {fmtVal(c.field, c.to)}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
 
         <div className="mt-4 flex items-center justify-between">

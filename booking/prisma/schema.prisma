@@ -52,6 +52,12 @@ enum AddonUnit {
   PER_ITEM
 }
 
+enum BookingAuditAction {
+  CREATE
+  UPDATE
+  CANCEL
+}
+
 enum DiscountType {
   NONE
   PERCENT
@@ -71,6 +77,7 @@ model User {
   createdAt    DateTime @default(now())
 
   bookings Booking[] @relation("BookingCreatedBy")
+  bookingAudits BookingAudit[] @relation("BookingAuditUser")
 }
 
 // ───────────────────────── Resource — объект (§5.2) ────────────────────
@@ -172,6 +179,7 @@ model Booking {
   updatedAt DateTime @updatedAt
 
   addons BookingAddon[]
+  audits BookingAudit[]
 
   @@index([resourceId, startAt, endAt])
   @@index([clientId])
@@ -225,4 +233,19 @@ model BookingAddon {
 
   @@index([bookingId])
   @@index([addonId])
+}
+
+// ───────────────────────── BookingAudit — журнал изменений брони ────────
+// Кто/когда/что менял. Пишется в той же транзакции, что и create/update/cancel.
+model BookingAudit {
+  id        String             @id @default(cuid())
+  bookingId String
+  booking   Booking            @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User               @relation("BookingAuditUser", fields: [userId], references: [id])
+  action    BookingAuditAction
+  changes   Json? // для UPDATE: [{field, from, to}]; для CREATE/CANCEL — null
+  createdAt DateTime           @default(now())
+
+  @@index([bookingId, createdAt])
 }
