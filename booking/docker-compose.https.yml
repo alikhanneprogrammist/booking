@@ -1,0 +1,25 @@
+# Прод-надстройка: HTTPS через Caddy (автоматический Let's Encrypt).
+# Домен задан в deploy/Caddyfile (booking.office2020.kz).
+#
+#   docker compose -f docker-compose.yml -f docker-compose.https.yml up -d
+#
+# Локально НЕ подключать: без DNS на этот сервер выпуск сертификата не пройдёт.
+# После запуска закройте порт 3000 фаерволом — наружу должны смотреть только 80/443.
+
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data # сертификаты — переживают пересоздание контейнера
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

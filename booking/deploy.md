@@ -260,24 +260,60 @@ cat ~/backups/office2020/booking_ДАТА.dump | docker compose exec -T db pg_re
 
 ---
 
-## 8. Прод за reverse-proxy (HTTPS)
+## 8. HTTPS: booking.office2020.kz (Caddy, рекомендуемый путь)
 
-Приложение слушает HTTP `:3000`. Для домена/TLS поставьте впереди Nginx/Caddy/Traefik:
+Целевые адреса:
+- **приложение** — `https://booking.office2020.kz/` (сотрудники; корень ведёт на вход),
+- **форма для клиентов** — `https://booking.office2020.kz/book` (сама перекидывает на `/ru/book`).
 
-- Проксируйте `https://домен` → `http://app:3000`.
-- Для безопасности уберите публикацию порта БД: удалите блок `ports: ["5432:5432"]` у сервиса `db` в `docker-compose.yml` (доступ к БД останется только внутри сети compose).
-- Auth.js работает за прокси корректно при правильных заголовках (`X-Forwarded-*`).
+### Шаг 1. DNS
+У регистратора/в DNS-панели домена `office2020.kz` добавьте запись:
 
-Пример локации Nginx:
+```
+booking    A    <внешний IP сервера>
+```
+
+Проверка (с любой машины): `nslookup booking.office2020.kz` → IP сервера.
+
+### Шаг 2. Открыть порты 80 и 443
+Порты нужны Caddy: 80 — для выпуска сертификата Let's Encrypt и редиректа на https, 443 — сам HTTPS.
+
+### Шаг 3. Запуск с Caddy
+Конфиг уже в репозитории: `deploy/Caddyfile` (домен) + `docker-compose.https.yml` (сервис Caddy).
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.https.yml up -d
+docker compose logs caddy | tail        # «certificate obtained» = сертификат получен
+```
+
+Caddy сам получает и автоматически продлевает сертификат — руками ничего делать не нужно.
+`X-Forwarded-*` для Auth.js проставляются автоматически.
+
+### Шаг 4. Спрятать порт 3000
+Наружу должны смотреть только 80/443 — закройте 3000 фаерволом (например, `ufw deny 3000`).
+Порт БД по умолчанию уже привязан к `127.0.0.1`.
+
+После этого можно логиниться админом и раздавать клиентам ссылку
+`https://booking.office2020.kz/book`; установка PWA («Добавить на главный экран»)
+работает только по HTTPS — теперь заработает.
+
+<details>
+<summary>Альтернатива: Nginx (если он уже стоит на сервере)</summary>
 
 ```nginx
-location / {
-  proxy_pass http://127.0.0.1:3000;
-  proxy_set_header Host $host;
-  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-  proxy_set_header X-Forwarded-Proto $scheme;
+server {
+  server_name booking.office2020.kz;
+  location / {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
 }
 ```
+
+Сертификат: `certbot --nginx -d booking.office2020.kz`.
+</details>
 
 ---
 
@@ -323,4 +359,4 @@ npm run db:seed        # один раз, очищает данные
 
 ---
 
-_Вход администратора — из `ADMIN_PHONE` / `ADMIN_PASSWORD` в `.env`. Ссылка для клиентов (публичная форма): `http://<хост>:3000/ru/book`._
+_Вход администратора — из `ADMIN_PHONE` / `ADMIN_PASSWORD` в `.env`. Ссылка для клиентов (публичная форма): `https://booking.office2020.kz/book` (до настройки HTTPS — `http://<хост>:3000/ru/book`)._

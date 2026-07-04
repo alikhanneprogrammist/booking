@@ -1,0 +1,12 @@
+# HTTPS для booking.office2020.kz (Caddy сам получает и продлевает
+# сертификат Let's Encrypt — нужны только DNS A-запись на сервер
+# и открытые порты 80/443).
+#
+# Запуск на сервере (из booking/):
+#   docker compose -f docker-compose.yml -f docker-compose.https.yml up -d
+#
+# X-Forwarded-* заголовки для Auth.js Caddy проставляет автоматически.
+
+booking.office2020.kz {
+	reverse_proxy app:3000
+}
