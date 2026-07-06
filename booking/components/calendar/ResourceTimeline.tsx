@@ -62,9 +62,11 @@ export default function ResourceTimeline({
   }, [dayStart]);
 
   return (
-    <div className="flex h-full flex-col overflow-x-auto">
-      {/* Заголовок: группы + объекты */}
-      <div className="min-w-[560px] border-b border-border">
+    // Один скролл-контейнер на шапку и тело: колонки всегда одной ширины (скроллбар не сдвигает тело).
+    <div ref={scrollRef} className="h-full overflow-auto">
+      <div className="min-w-[560px]">
+      {/* Заголовок: группы + объекты (липкий, поверх броней и линии «сейчас») */}
+      <div className="sticky top-0 z-20 border-b border-border bg-background">
         <div className="flex">
           <div className="w-14 shrink-0" />
           {groups.map((g) => (
@@ -89,8 +91,7 @@ export default function ResourceTimeline({
       </div>
 
       {/* Тело: сетка часов + колонки */}
-      <div ref={scrollRef} className="min-w-[560px] flex-1 overflow-y-auto">
-        <div className="flex" style={{height: gridHours * HOUR_PX}}>
+      <div className="flex" style={{height: gridHours * HOUR_PX}}>
           {/* Часовая шкала (часы ≥24 — следующий день) */}
           <div className="relative w-14 shrink-0">
             {hours.map((h) => (

@@ -52,9 +52,11 @@ export default function WeekTimeline({
   }
 
   return (
-    <div className="flex h-full flex-col overflow-x-auto">
-      {/* Заголовок дней */}
-      <div className="flex min-w-[640px] border-b border-border">
+    // Один скролл-контейнер на шапку и тело: колонки всегда одной ширины (скроллбар не сдвигает тело).
+    <div className="h-full overflow-auto">
+      <div className="min-w-[640px]">
+      {/* Заголовок дней (липкий, поверх броней и линии «сейчас») */}
+      <div className="sticky top-0 z-20 flex border-b border-border bg-background">
         <div className="w-14 shrink-0" />
         {days.map((d) => {
           const isToday = now >= d && now < addDays(d, 1);
@@ -67,8 +69,7 @@ export default function WeekTimeline({
         })}
       </div>
 
-      <div className="min-w-[640px] flex-1 overflow-y-auto">
-        <div className="flex" style={{height: 24 * HOUR_PX}}>
+      <div className="flex" style={{height: 24 * HOUR_PX}}>
           <div className="relative w-14 shrink-0">
             {HOURS.map((h) => (
               <div key={h} className="absolute right-1 -translate-y-1/2 text-[10px] text-muted" style={{top: h * HOUR_PX}}>

@@ -60,7 +60,7 @@ export default function BookingBlock({
         ...style,
         borderLeftColor: resource.color, // рамка — цвет объекта, фон — цвет статуса
       }}
-      className={`absolute overflow-hidden rounded-md border border-border border-l-[3px] px-1.5 py-1 text-left text-[11px] leading-tight shadow-sm transition-shadow hover:shadow ${
+      className={`absolute flex flex-col overflow-hidden rounded-md border border-border border-l-[3px] px-1.5 py-1 text-left text-[11px] leading-tight shadow-sm transition-shadow hover:shadow ${
         STATUS_BG[booking.status]
       } ${cancelled ? 'opacity-50' : ''}`}
     >
