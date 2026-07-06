@@ -31,12 +31,13 @@ enum Tariff {
 }
 
 enum BookingStatus {
-  NEW
-  CONFIRMED
-  PREPAID
-  COMPLETED
-  CANCELLED
-  NO_SHOW
+  NEW // Предварительная бронь
+  CONFIRMED // Бронь / без предоплаты
+  PREPAID // Бронь / предоплата
+  ARRIVED // Пришли
+  COMPLETED // Успешно реализовано
+  CANCELLED // Не пришли / отмена (освобождает время)
+  NO_SHOW // Не пришли / перенос (время остаётся занятым)
 }
 
 enum BookingSource {
@@ -45,6 +46,16 @@ enum BookingSource {
   WHATSAPP
   INSTAGRAM
   WIDGET
+  TWO_GIS
+  GOOGLE_SITE
+  REGULAR // Постоянный гость
+  RETURNING // Был ранее
+  REFERRAL // По рекомендации
+  AGENT // От агента
+  OUTDOOR_AD // Наружная реклама
+  BLOGGERS // Блогеры / UGC
+  B2B
+  BI_KMG_QAZGAZ
 }
 
 enum AddonUnit {

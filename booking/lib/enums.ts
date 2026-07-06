@@ -9,11 +9,15 @@ export const DISCOUNT_TYPES = ['NONE', 'PERCENT', 'AMOUNT'] as const;
 export type DiscountType = (typeof DISCOUNT_TYPES)[number];
 
 export const BOOKING_STATUSES = [
-  'NEW', 'CONFIRMED', 'PREPAID', 'COMPLETED', 'CANCELLED', 'NO_SHOW',
+  'NEW', 'CONFIRMED', 'PREPAID', 'ARRIVED', 'COMPLETED', 'CANCELLED', 'NO_SHOW',
 ] as const;
 export type BookingStatus = (typeof BOOKING_STATUSES)[number];
 
-export const BOOKING_SOURCES = ['ADMIN', 'PHONE', 'WHATSAPP', 'INSTAGRAM', 'WIDGET'] as const;
+export const BOOKING_SOURCES = [
+  'ADMIN', 'PHONE', 'WHATSAPP', 'INSTAGRAM', 'WIDGET',
+  'TWO_GIS', 'GOOGLE_SITE', 'REGULAR', 'RETURNING', 'REFERRAL',
+  'AGENT', 'OUTDOOR_AD', 'BLOGGERS', 'B2B', 'BI_KMG_QAZGAZ',
+] as const;
 export type BookingSource = (typeof BOOKING_SOURCES)[number];
 
 export const ROLES = ['ADMIN', 'MANAGER'] as const;

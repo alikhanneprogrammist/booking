@@ -84,10 +84,14 @@ export const bookingInput = z.object({
   startAt: z.coerce.date(),
   endAt: z.coerce.date(),
   status: z
-    .enum(['NEW', 'CONFIRMED', 'PREPAID', 'COMPLETED', 'CANCELLED', 'NO_SHOW'])
+    .enum(['NEW', 'CONFIRMED', 'PREPAID', 'ARRIVED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'])
     .default('NEW'),
   source: z
-    .enum(['ADMIN', 'PHONE', 'WHATSAPP', 'INSTAGRAM', 'WIDGET'])
+    .enum([
+      'ADMIN', 'PHONE', 'WHATSAPP', 'INSTAGRAM', 'WIDGET',
+      'TWO_GIS', 'GOOGLE_SITE', 'REGULAR', 'RETURNING', 'REFERRAL',
+      'AGENT', 'OUTDOOR_AD', 'BLOGGERS', 'B2B', 'BI_KMG_QAZGAZ',
+    ])
     .default('ADMIN'),
   tariff: z
     .enum(['HOURLY', 'HALF_DAY', 'FULL_DAY', 'WEEKEND', 'CUSTOM'])

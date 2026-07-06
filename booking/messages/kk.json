@@ -198,12 +198,13 @@
     }
   },
   "status": {
-    "NEW": "Жаңа",
-    "CONFIRMED": "Расталған",
-    "PREPAID": "Алдын ала төленген",
-    "COMPLETED": "Аяқталған",
-    "CANCELLED": "Бас тартылған",
-    "NO_SHOW": "Келмеді"
+    "NEW": "Алдын ала бронь",
+    "CONFIRMED": "Бронь / алғытөлемсіз",
+    "PREPAID": "Бронь / алғытөлеммен",
+    "ARRIVED": "Келді",
+    "COMPLETED": "Сәтті өткізілді",
+    "CANCELLED": "Келмеді / бас тарту",
+    "NO_SHOW": "Келмеді / ауыстыру"
   },
   "tariff": {
     "HOURLY": "Сағаттық",
@@ -217,7 +218,17 @@
     "PHONE": "Телефон",
     "WHATSAPP": "WhatsApp",
     "INSTAGRAM": "Instagram",
-    "WIDGET": "Виджет"
+    "WIDGET": "Виджет",
+    "TWO_GIS": "2ГИС",
+    "GOOGLE_SITE": "Google сайт",
+    "REGULAR": "Тұрақты қонақ",
+    "RETURNING": "Бұрын болған",
+    "REFERRAL": "Ұсыныс бойынша",
+    "AGENT": "Агенттен",
+    "OUTDOOR_AD": "Сыртқы жарнама",
+    "BLOGGERS": "Блогерлер / UGC",
+    "B2B": "B2B",
+    "BI_KMG_QAZGAZ": "BI / KMG / QazGaz"
   },
   "amenity": {
     "karaoke": "Караоке",

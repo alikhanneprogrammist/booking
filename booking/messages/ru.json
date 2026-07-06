@@ -198,12 +198,13 @@
     }
   },
   "status": {
-    "NEW": "Новая",
-    "CONFIRMED": "Подтверждена",
-    "PREPAID": "Предоплачена",
-    "COMPLETED": "Завершена",
-    "CANCELLED": "Отменена",
-    "NO_SHOW": "Не пришёл"
+    "NEW": "Предварительная бронь",
+    "CONFIRMED": "Бронь / без П/о",
+    "PREPAID": "Бронь / П/о",
+    "ARRIVED": "Пришли",
+    "COMPLETED": "Успешно реализовано",
+    "CANCELLED": "Не пришли / отмена",
+    "NO_SHOW": "Не пришли / перенос"
   },
   "tariff": {
     "HOURLY": "Почасовой",
@@ -217,7 +218,17 @@
     "PHONE": "Телефон",
     "WHATSAPP": "WhatsApp",
     "INSTAGRAM": "Instagram",
-    "WIDGET": "Виджет"
+    "WIDGET": "Виджет",
+    "TWO_GIS": "2ГИС",
+    "GOOGLE_SITE": "Google сайт",
+    "REGULAR": "Постоянный гость",
+    "RETURNING": "Был ранее",
+    "REFERRAL": "По рекомендации",
+    "AGENT": "От агента",
+    "OUTDOOR_AD": "Наружная реклама",
+    "BLOGGERS": "Блогеры / UGC",
+    "B2B": "B2B",
+    "BI_KMG_QAZGAZ": "BI / KMG / QazGaz"
   },
   "amenity": {
     "karaoke": "Караоке",
