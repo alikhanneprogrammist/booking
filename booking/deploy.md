@@ -260,20 +260,21 @@ cat ~/backups/office2020/booking_ДАТА.dump | docker compose exec -T db pg_re
 
 ---
 
-## 8. HTTPS: booking.office2020.kz (Caddy, рекомендуемый путь)
+## 8. HTTPS: urs.office2020.kz (Caddy, рекомендуемый путь)
 
 Целевые адреса:
-- **приложение** — `https://booking.office2020.kz/` (сотрудники; корень ведёт на вход),
-- **форма для клиентов** — `https://booking.office2020.kz/book` (сама перекидывает на `/ru/book`).
+- **приложение** — `https://urs.office2020.kz/` (сотрудники; корень ведёт на вход),
+- **форма для клиентов** — `https://urs.office2020.kz/book` (сама перекидывает на `/ru/book`).
 
 ### Шаг 1. DNS
 У регистратора/в DNS-панели домена `office2020.kz` добавьте запись:
 
 ```
-booking    A    <внешний IP сервера>
+urs        A    <внешний IP сервера>
+booking    A    <внешний IP сервера>   # старый поддомен — оставить для редиректа
 ```
 
-Проверка (с любой машины): `nslookup booking.office2020.kz` → IP сервера.
+Проверка (с любой машины): `nslookup urs.office2020.kz` → IP сервера.
 
 ### Шаг 2. Открыть порты 80 и 443
 Порты нужны Caddy: 80 — для выпуска сертификата Let's Encrypt и редиректа на https, 443 — сам HTTPS.
@@ -301,7 +302,7 @@ HTTPS-overlay `docker-compose.https.yml` сбрасывает у сервиса 
 Порт БД по умолчанию уже привязан к `127.0.0.1`.
 
 После этого можно логиниться админом и раздавать клиентам ссылку
-`https://booking.office2020.kz/book`; установка PWA («Добавить на главный экран»)
+`https://urs.office2020.kz/book`; установка PWA («Добавить на главный экран»)
 работает только по HTTPS — теперь заработает.
 
 <details>
@@ -309,7 +310,7 @@ HTTPS-overlay `docker-compose.https.yml` сбрасывает у сервиса 
 
 ```nginx
 server {
-  server_name booking.office2020.kz;
+  server_name urs.office2020.kz;
   location / {
     proxy_pass http://127.0.0.1:3000;
     proxy_set_header Host $host;
@@ -319,7 +320,7 @@ server {
 }
 ```
 
-Сертификат: `certbot --nginx -d booking.office2020.kz`.
+Сертификат: `certbot --nginx -d urs.office2020.kz`.
 </details>
 
 ---
@@ -366,4 +367,4 @@ npm run db:seed        # один раз, очищает данные
 
 ---
 
-_Вход администратора — из `ADMIN_PHONE` / `ADMIN_PASSWORD` в `.env`. Ссылка для клиентов (публичная форма): `https://booking.office2020.kz/book` (до настройки HTTPS — `http://<хост>:3000/ru/book`)._
+_Вход администратора — из `ADMIN_PHONE` / `ADMIN_PASSWORD` в `.env`. Ссылка для клиентов (публичная форма): `https://urs.office2020.kz/book` (до настройки HTTPS — `http://<хост>:3000/ru/book`)._

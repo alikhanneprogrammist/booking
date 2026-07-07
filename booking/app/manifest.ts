@@ -16,9 +16,9 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     // БД недоступна (например, при сборке образа) — статичный фолбэк.
   }
   return {
-    name: `${company} — Бронирование`,
-    short_name: company,
-    description: `Система брони и управления ресурсами ${company}`,
+    name: `URS CRM — ${company}`,
+    short_name: 'URS CRM',
+    description: `URS CRM — система брони и управления ресурсами ${company}`,
     start_url: '/',
     scope: '/',
     display: 'standalone',

@@ -19,11 +19,11 @@ const inter = localFont({
 });
 
 export const metadata: Metadata = {
-  title: 'OFFICE 2020 — Бронирование',
-  description: 'Система онлайн-брони и управления ресурсами OFFICE 2020',
-  applicationName: 'OFFICE 2020',
+  title: 'URS CRM — OFFICE 2020',
+  description: 'URS CRM — система онлайн-брони и управления ресурсами OFFICE 2020',
+  applicationName: 'URS CRM',
   // iOS: «Добавить на главный экран» → полноэкранный режим + иконка.
-  appleWebApp: {capable: true, statusBarStyle: 'default', title: 'OFFICE 2020'},
+  appleWebApp: {capable: true, statusBarStyle: 'default', title: 'URS CRM'},
   icons: {
     icon: '/icons/icon-192.png',
     apple: '/icons/apple-touch-icon.png',

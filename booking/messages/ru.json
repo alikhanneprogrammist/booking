@@ -1,6 +1,6 @@
 {
   "app": {
-    "title": "OFFICE 2020 — Бронирование"
+    "title": "URS CRM — OFFICE 2020"
   },
   "nav": {
     "calendar": "Календарь",
@@ -296,7 +296,7 @@
   },
   "auth": {
     "title": "Вход",
-    "subtitle": "Система бронирования OFFICE 2020",
+    "subtitle": "URS CRM — система бронирования OFFICE 2020",
     "phone": "Телефон",
     "password": "Пароль",
     "submit": "Войти",

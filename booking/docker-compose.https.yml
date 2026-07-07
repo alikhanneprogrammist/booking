@@ -1,5 +1,5 @@
 # Прод-надстройка: HTTPS через Caddy (автоматический Let's Encrypt).
-# Домен задан в deploy/Caddyfile (booking.office2020.kz).
+# Домен задан в deploy/Caddyfile (urs.office2020.kz).
 #
 #   docker compose -f docker-compose.yml -f docker-compose.https.yml up -d
 #

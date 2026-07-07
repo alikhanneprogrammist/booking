@@ -1,6 +1,6 @@
 {
   "app": {
-    "title": "OFFICE 2020 — Брондау"
+    "title": "URS CRM — OFFICE 2020"
   },
   "nav": {
     "calendar": "Күнтізбе",
@@ -296,7 +296,7 @@
   },
   "auth": {
     "title": "Кіру",
-    "subtitle": "OFFICE 2020 брондау жүйесі",
+    "subtitle": "URS CRM — OFFICE 2020 брондау жүйесі",
     "phone": "Телефон",
     "password": "Құпиясөз",
     "submit": "Кіру",

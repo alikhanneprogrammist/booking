@@ -1,4 +1,4 @@
-# HTTPS для booking.office2020.kz (Caddy сам получает и продлевает
+# HTTPS для urs.office2020.kz (Caddy сам получает и продлевает
 # сертификат Let's Encrypt — нужны только DNS A-запись на сервер
 # и открытые порты 80/443).
 #
@@ -7,7 +7,7 @@
 #
 # X-Forwarded-* заголовки для Auth.js Caddy проставляет автоматически.
 
-booking.office2020.kz {
+urs.office2020.kz {
 	reverse_proxy app:3000 {
 		# Реальный IP клиента в доверенный заголовок — на него опирается
 		# rate-limit публичной формы /book (lib/public-actions.ts clientIp).
@@ -22,4 +22,10 @@ booking.office2020.kz {
 		Referrer-Policy strict-origin-when-cross-origin
 		-Server
 	}
+}
+
+# Старый поддомен: постоянный редирект, чтобы сохранённые ссылки/QR не умерли.
+# (DNS-запись booking → сервер оставить, пока редирект нужен.)
+booking.office2020.kz {
+	redir https://urs.office2020.kz{uri} permanent
 }
