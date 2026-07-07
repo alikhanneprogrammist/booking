@@ -4,12 +4,13 @@ import {useEffect, useMemo, useRef, useState} from 'react';
 import {useTranslations} from 'next-intl';
 import {computePrice} from '@/lib/pricing';
 import {durationHours, intervalsOverlap} from '@/lib/time';
-import {toLocalInput, fromLocalInput, nextDayStr, dayDiffStr} from '@/lib/calendar';
+import {toLocalInput, fromLocalInput, fmtTime} from '@/lib/calendar';
 import {saveBooking, cancelBookingAction, getBookingHistory} from '@/lib/actions';
 import {dialogField, dialogLabel} from '@/lib/ui';
-import {TARIFFS, DISCOUNT_TYPES, BOOKING_STATUSES, BOOKING_SOURCES} from '@/lib/enums';
+import {TARIFFS, DISCOUNT_TYPES, BOOKING_STATUSES, BOOKING_SOURCES, PAYMENT_METHODS} from '@/lib/enums';
 import type {
   MockResource, MockAddon, MockClient, MockBooking, Tariff, BookingStatus, BookingSource, DiscountType,
+  PaymentMethod,
 } from '@/lib/types';
 import ClientPicker from './ClientPicker';
 import ResourceSummary from './ResourceSummary';
@@ -34,6 +35,7 @@ export default function BookingDialog({
   const tt = useTranslations('tariff');
   const ts = useTranslations('status');
   const tsrc = useTranslations('source');
+  const tpm = useTranslations('payment');
 
   const init = booking;
   const defaultStart = init?.startAt ?? prefill?.startAt ?? new Date();
@@ -41,16 +43,13 @@ export default function BookingDialog({
 
   const [resourceId, setResourceId] = useState(init?.resourceId ?? prefill?.resourceId ?? resources[0].id);
   const [clientId, setClientId] = useState(init?.clientId ?? clients[0]?.id ?? '');
-  // Дата брони + время начала/конца (набор с клавиатуры). Конец ≤ начала → следующий день.
+  // Дата брони + время начала + длительность в часах; конец считается автоматически
+  // (ночные и многодневные брони — просто большим числом часов).
   const [date, setDate] = useState(() => toLocalInput(defaultStart).slice(0, 10));
   const [startTime, setStartTime] = useState(() => toLocalInput(defaultStart).slice(11, 16));
-  const [endTime, setEndTime] = useState(() => toLocalInput(defaultEnd).slice(11, 16));
-  // Бронь длиннее суток невыразима правилом «конец ≤ начала → +1 день»:
-  // дата конца редактируется явно, иначе сохранение молча укоротит бронь.
-  const [multiDay] = useState(
-    () => dayDiffStr(toLocalInput(defaultStart).slice(0, 10), toLocalInput(defaultEnd).slice(0, 10)) >= 2,
+  const [hours, setHours] = useState(() =>
+    String(init ? durationHours(defaultStart, defaultEnd) : 3),
   );
-  const [endDate, setEndDate] = useState(() => toLocalInput(defaultEnd).slice(0, 10));
   const [guests, setGuests] = useState(init?.guests ?? 2);
   const [tariff, setTariff] = useState<Tariff>(init?.tariff ?? 'HOURLY');
   const [status, setStatus] = useState<BookingStatus>(init?.status ?? 'NEW');
@@ -67,6 +66,7 @@ export default function BookingDialog({
   const [totalTouched, setTotalTouched] = useState(false);
   const [deposit, setDeposit] = useState(String(init?.deposit ?? 0));
   const [prepayment, setPrepayment] = useState(String(init?.prepayment ?? 0));
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | ''>(init?.paymentMethod ?? '');
   const [comment, setComment] = useState(init?.comment ?? '');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -95,11 +95,19 @@ export default function BookingDialog({
   const resource = resources.find((r) => r.id === resourceId)!;
   // Тот же минимум, что применит сервер (lib/bookings.ts): max(объектный, глобальный).
   const effectiveMinHours = Math.max(resource.minHours, minBookingHours);
-  const overnight = !multiDay && endTime <= startTime; // конец не позже начала → бронь через полночь
   const startAt = fromLocalInput(`${date}T${startTime}`);
-  const endAt = fromLocalInput(`${multiDay ? endDate : overnight ? nextDayStr(date) : date}T${endTime}`);
+  const endAt = new Date(startAt.getTime() + (Number(hours) || 0) * 3600_000);
   // Очищенные поля даты/времени дают Invalid Date — NaN проходит все сравнения молча.
-  const timesValid = !Number.isNaN(startAt.getTime()) && !Number.isNaN(endAt.getTime());
+  const timesValid = !Number.isNaN(startAt.getTime()) && Number(hours) > 0;
+  // Подсказка «до …»: время конца; при переходе на другой день — с датой.
+  const sameDay = timesValid && toLocalInput(startAt).slice(0, 10) === toLocalInput(endAt).slice(0, 10);
+  const endHint = !timesValid
+    ? ''
+    : sameDay
+      ? fmtTime(endAt, locale)
+      : new Intl.DateTimeFormat(locale, {
+          timeZone: 'Asia/Almaty', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+        }).format(endAt);
 
   const price = useMemo(() => {
     const lines = addons
@@ -110,7 +118,7 @@ export default function BookingDialog({
       value: Number(discountValue) || 0,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resourceId, tariff, date, endDate, startTime, endTime, JSON.stringify(qty), guests, discountType, discountValue]);
+  }, [resourceId, tariff, date, startTime, hours, JSON.stringify(qty), guests, discountType, discountValue]);
 
   // В edit-режиме первый прогон пропускаем: показываем сохранённый итог (мог быть договорным).
   // Но любое изменение цено-влияющих полей пересчитывает итог, пока его не правили руками, —
@@ -154,6 +162,7 @@ export default function BookingDialog({
         total: Number(total) || 0,
         deposit: Number(deposit) || 0,
         prepayment: Number(prepayment) || 0,
+        paymentMethod: paymentMethod || null,
         discountType,
         discountValue: discountType === 'NONE' ? 0 : Number(discountValue) || 0,
         comment: comment || undefined,
@@ -191,13 +200,14 @@ export default function BookingDialog({
   const FIELD_LABEL: Record<string, string> = {
     resourceId: 'resource', clientId: 'client', startAt: 'start', endAt: 'end',
     tariff: 'tariff', guests: 'guests', total: 'total', deposit: 'deposit',
-    prepayment: 'prepayment', status: 'status', source: 'source',
+    prepayment: 'prepayment', paymentMethod: 'paymentMethod', status: 'status', source: 'source',
     discountType: 'discount', discountValue: 'discount', comment: 'comment', addons: 'addons',
   };
   const fmtVal = (field: string, v: unknown): string => {
     if (v == null || v === '') return '—';
     if (field === 'status') return ts(String(v));
     if (field === 'source') return tsrc(String(v));
+    if (field === 'paymentMethod') return tpm(String(v));
     if (field === 'tariff') return tt(String(v));
     if (field === 'discountType') return tb(`discountKind.${v}`);
     if (field === 'startAt' || field === 'endAt') return fmtAt(String(v));
@@ -245,24 +255,19 @@ export default function BookingDialog({
           </label>
           <div className={labelCls}>
             <span className="flex items-center justify-between">
-              <span>{tb('start')} / {tb('end')}</span>
-              {overnight && (
-                <span className="text-[10px] normal-case text-amber-600">
-                  {endTime === startTime ? tb('fullDayHint') : tb('nextDayHint')}
+              <span>{tb('start')} / {tb('hours')}</span>
+              {timesValid && (
+                <span className={`text-[10px] normal-case ${sameDay ? 'text-muted' : 'text-amber-600'}`}>
+                  {tb('endHint', {t: endHint})}
                 </span>
               )}
             </span>
             <div className="flex gap-1.5">
               <input type="time" className={`${fieldCls} flex-1`} value={startTime} onChange={(e) => setStartTime(e.target.value)} />
-              <input type="time" className={`${fieldCls} flex-1`} value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+              <input type="number" min={1} step={1} className={`${fieldCls} flex-1`}
+                value={hours} onChange={(e) => setHours(e.target.value)} />
             </div>
           </div>
-          {multiDay && (
-            <label className={labelCls}>
-              {tb('endDate')}
-              <input type="date" className={fieldCls} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-            </label>
-          )}
           <label className={labelCls}>
             {tb('tariff')}
             <select className={fieldCls} value={tariff} onChange={(e) => setTariff(e.target.value as Tariff)}>
@@ -357,6 +362,14 @@ export default function BookingDialog({
           <label className={labelCls}>
             {tb('prepayment')}
             <input className={fieldCls} value={prepayment} onChange={(e) => setPrepayment(e.target.value)} />
+          </label>
+          <label className={labelCls}>
+            {tb('paymentMethod')}
+            <select className={fieldCls} value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod | '')}>
+              <option value="">—</option>
+              {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{tpm(m)}</option>)}
+            </select>
           </label>
         </div>
 

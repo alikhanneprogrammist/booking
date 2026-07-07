@@ -83,6 +83,7 @@ export function toBooking(b: BookingRow): MockBooking {
     total: num(b.total),
     deposit: num(b.deposit),
     prepayment: num(b.prepayment),
+    paymentMethod: b.paymentMethod ?? undefined,
     discountType: b.discountType,
     discountValue: num(b.discountValue),
     comment: b.comment ?? undefined,

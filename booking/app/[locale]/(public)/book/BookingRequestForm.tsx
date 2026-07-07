@@ -2,7 +2,7 @@
 
 import {useEffect, useState} from 'react';
 import {useLocale, useTranslations} from 'next-intl';
-import {fromLocalInput, nextDayStr} from '@/lib/calendar';
+import {fromLocalInput, fmtTime} from '@/lib/calendar';
 import {submitBookingRequest, type PublicBookingError} from '@/lib/public-actions';
 
 type ResourceOption = {
@@ -28,6 +28,9 @@ const TIME_SLOTS: string[] = Array.from({length: 48}, (_, i) =>
   `${pad(Math.floor(i / 2))}:${i % 2 === 0 ? '00' : '30'}`,
 );
 
+/** Длительность: полные часы 1–12 (конец считается автоматически). */
+const HOUR_OPTIONS: number[] = Array.from({length: 12}, (_, i) => i + 1);
+
 /** Сегодняшняя дата в формате YYYY-MM-DD (по часам устройства). */
 function todayStr(): string {
   const d = new Date();
@@ -52,7 +55,7 @@ export default function BookingRequestForm({resources}: {resources: ResourceOpti
   const [phone, setPhone] = useState('+7'); // префикс по умолчанию; можно стереть
   const [date, setDate] = useState('');
   const [start, setStart] = useState('20:00');
-  const [end, setEnd] = useState('23:00');
+  const [hours, setHours] = useState('3');
   const [guests, setGuests] = useState('1');
   const [comment, setComment] = useState('');
   const [website, setWebsite] = useState(''); // honeypot: люди не видят, боты заполняют
@@ -70,6 +73,10 @@ export default function BookingRequestForm({resources}: {resources: ResourceOpti
     return locale === 'kk' ? r.nameKk : r.nameRu;
   }
 
+  // Превью конца брони: на время суток дата не влияет — считаем от фиктивного дня.
+  const endPreview = new Date(fromLocalInput(`2000-01-01T${start}`).getTime() + Number(hours) * 3600_000);
+  const endsNextDay = endPreview >= fromLocalInput('2000-01-02T00:00');
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -77,8 +84,7 @@ export default function BookingRequestForm({resources}: {resources: ResourceOpti
     setSaving(true);
 
     const startAt = fromLocalInput(`${date}T${start}`);
-    let endAt = fromLocalInput(`${date}T${end}`);
-    if (endAt <= startAt) endAt = fromLocalInput(`${nextDayStr(date)}T${end}`);
+    const endAt = new Date(startAt.getTime() + Number(hours) * 3600_000);
 
     try {
       const res = await submitBookingRequest({
@@ -209,26 +215,25 @@ export default function BookingRequestForm({resources}: {resources: ResourceOpti
           </select>
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-muted">{t('end')}</span>
+          <span className="text-xs font-medium text-muted">{t('hours')}</span>
           <select
-            value={end}
-            onChange={(e) => setEnd(e.target.value)}
+            value={hours}
+            onChange={(e) => setHours(e.target.value)}
             required
             className={TOUCH_FIELD}
           >
-            {TIME_SLOTS.map((s) => (
-              <option key={s} value={s}>{s}</option>
+            {HOUR_OPTIONS.map((h) => (
+              <option key={h} value={h}>{h}</option>
             ))}
           </select>
         </label>
       </div>
 
-      {/* Подсказка для брони через полночь (равное время = ровно 24 часа) */}
-      {end <= start && (
-        <p className="-mt-1 text-xs text-muted">
-          {end === start ? t('fullDayHint') : t('nextDayHint')}
-        </p>
-      )}
+      {/* Вычисленный конец брони; переход через полночь подсвечиваем */}
+      <p className={`-mt-1 text-xs ${endsNextDay ? 'text-amber-600' : 'text-muted'}`}>
+        {t('endHint', {t: fmtTime(endPreview, locale)})}
+        {endsNextDay ? ` · ${t('nextDayHint')}` : ''}
+      </p>
 
       <label className="flex flex-col gap-1.5">
         <span className="text-xs font-medium text-muted">{t('guests')}</span>

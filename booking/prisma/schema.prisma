@@ -58,6 +58,12 @@ enum BookingSource {
   BI_KMG_QAZGAZ
 }
 
+enum PaymentMethod {
+  KASPI // Каспи
+  CASH // Наличные
+  BANK // Банк (перевод/счёт)
+}
+
 enum AddonUnit {
   PER_EVENT
   PER_ITEM
@@ -174,9 +180,10 @@ model Booking {
   tariff Tariff        @default(HOURLY)
   guests Int           @default(1)
 
-  total      Decimal @default(0) @db.Decimal(12, 2)
-  deposit    Decimal @default(0) @db.Decimal(12, 2)
-  prepayment Decimal @default(0) @db.Decimal(12, 2)
+  total         Decimal        @default(0) @db.Decimal(12, 2)
+  deposit       Decimal        @default(0) @db.Decimal(12, 2)
+  prepayment    Decimal        @default(0) @db.Decimal(12, 2)
+  paymentMethod PaymentMethod? // Каспи/Нал/Банк; null — не задано
 
   // Скидка по брони (§4.9): тип + значение (% или сумма ₸). Пишется в историю клиента.
   discountType  DiscountType @default(NONE)

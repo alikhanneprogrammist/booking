@@ -1,10 +1,10 @@
-import type {Tariff, DiscountType, BookingStatus, BookingSource, Role} from './enums';
+import type {Tariff, DiscountType, BookingStatus, BookingSource, PaymentMethod, Role} from './enums';
 
 // DTO-типы приложения: форма Prisma-моделей с числовыми ценами вместо Decimal
 // (см. маппинг в lib/queries.ts). Исторические имена Mock* сохранены —
 // они закрепились по всем компонентам со времён мок-этапа.
 
-export type {Tariff, DiscountType, BookingStatus, BookingSource, Role};
+export type {Tariff, DiscountType, BookingStatus, BookingSource, PaymentMethod, Role};
 
 export interface MockResource {
   id: string;
@@ -72,6 +72,7 @@ export interface MockBooking {
   total: number;
   deposit: number;
   prepayment: number;
+  paymentMethod?: PaymentMethod; // Каспи/Нал/Банк; undefined — не задано
   discountType: DiscountType;
   discountValue: number;
   comment?: string;
