@@ -24,23 +24,15 @@ export default function ResourceTimeline({
   onBookingClick: (b: MockBooking) => void;
 }) {
   const tg = useTranslations('groups');
-  const tc = useTranslations('calendar');
   const dayEnd = addDays(dayStart, 1);
   const showNow = now >= dayStart && now < dayEnd;
   const nowTop = (minutesFromDayStart(now, dayStart) / 60) * HOUR_PX;
 
-  // Сетка 24/7: продлеваем за полночь, если ночная бронь ЭТОГО дня тянется в утро след. дня
-  // (высоту сетки определяют только брони, пересекающие сами сутки — без цепной прокрутки).
-  const maxEndHours = bookings
-    .filter((b) => b.startAt < dayEnd && b.endAt > dayStart)
-    .reduce((m, b) => Math.max(m, minutesFromDayStart(b.endAt, dayStart) / 60), 24);
-  const gridHours = Math.min(32, Math.max(24, Math.ceil(maxEndHours)));
-  const gridEnd = new Date(dayStart.getTime() + gridHours * 3600_000);
-  const hours = Array.from({length: gridHours}, (_, i) => i);
+  // Сетка строго 00:00–24:00: часть брони за полночь показывается в начале следующего дня.
+  const hours = Array.from({length: 24}, (_, i) => i);
 
-  // Рисуем всё видимое в сетке [dayStart, gridEnd): «хвосты» с прошлого дня, ночные этого дня
-  // И брони, начинающиеся следующим днём в продлённых строках — иначе занятое там выглядит свободным.
-  const dayBookings = bookings.filter((b) => b.startAt < gridEnd && b.endAt > dayStart);
+  // Рисуем всё видимое в сутках [dayStart, dayEnd), включая «хвосты» броней с прошлого дня.
+  const dayBookings = bookings.filter((b) => b.startAt < dayEnd && b.endAt > dayStart);
 
   const name = (r: MockResource) => (locale === 'kk' ? r.nameKk : r.nameRu);
   const groups = KINDS.map((k) => ({k, items: resources.filter((r) => r.kind === k)})).filter((g) => g.items.length);
@@ -91,23 +83,18 @@ export default function ResourceTimeline({
       </div>
 
       {/* Тело: сетка часов + колонки */}
-      <div className="flex" style={{height: gridHours * HOUR_PX}}>
-          {/* Часовая шкала (часы ≥24 — следующий день) */}
+      <div className="flex" style={{height: 24 * HOUR_PX}}>
+          {/* Часовая шкала */}
           <div className="relative w-14 shrink-0">
             {hours.map((h) => (
               <div
                 key={h}
-                className={`absolute right-1 -translate-y-1/2 text-[10px] ${h >= 24 ? 'italic text-muted/60' : 'text-muted'}`}
+                className="absolute right-1 -translate-y-1/2 text-[10px] text-muted"
                 style={{top: h * HOUR_PX}}
               >
-                {fmtHour(h % 24)}
+                {fmtHour(h)}
               </div>
             ))}
-            {gridHours > 24 && (
-              <div className="absolute right-1 text-[9px] font-medium text-muted/70" style={{top: 24 * HOUR_PX + 2}}>
-                {tc('nextDay')}
-              </div>
-            )}
           </div>
 
           {resources.map((r) => (
@@ -116,11 +103,11 @@ export default function ResourceTimeline({
               onClick={(e) => handleColumnClick(r.id, e)}
               className="relative flex-1 cursor-pointer border-l border-border"
             >
-              {/* Часовые линии (жирнее — граница полуночи 24:00) */}
+              {/* Часовые линии */}
               {hours.map((h) => (
                 <div
                   key={h}
-                  className={`absolute left-0 right-0 border-t ${h === 24 ? 'border-foreground/40' : 'border-border/60'}`}
+                  className="absolute left-0 right-0 border-t border-border/60"
                   style={{top: h * HOUR_PX}}
                 />
               ))}
@@ -133,7 +120,7 @@ export default function ResourceTimeline({
               {/* Брони этого объекта */}
               {dayBookings.filter((b) => b.resourceId === r.id).map((b) => {
                 const vStart = b.startAt < dayStart ? dayStart : b.startAt;
-                const vEnd = b.endAt > gridEnd ? gridEnd : b.endAt;
+                const vEnd = b.endAt > dayEnd ? dayEnd : b.endAt;
                 const top = (minutesFromDayStart(vStart, dayStart) / 60) * HOUR_PX;
                 const height = ((vEnd.getTime() - vStart.getTime()) / 3600_000) * HOUR_PX;
                 return (
@@ -145,7 +132,7 @@ export default function ResourceTimeline({
                     addons={addons}
                     locale={locale}
                     style={{top, height: Math.max(height, 18), left: 4, right: 4}}
-                    clipped={b.endAt > gridEnd}
+                    clipped={b.endAt > dayEnd}
                     onClick={() => onBookingClick(b)}
                   />
                 );
