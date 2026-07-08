@@ -136,6 +136,7 @@ async function main() {
         total: b.total,
         deposit: b.deposit,
         prepayment: b.prepayment,
+        paymentMethod: b.paymentMethod ?? null,
         discountType: b.discountType,
         discountValue: b.discountValue,
         comment: b.comment ?? null,

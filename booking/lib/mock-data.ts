@@ -1,12 +1,20 @@
-import {fromAlmaty} from './time';
+import {fromAlmaty, toAlmaty} from './time';
 import type {MockResource, MockAddon, MockClient, MockUser, MockBooking} from './types';
 
 // Демо-данные для prisma/seed.ts (реальные 5 объектов из ТЗ §5.8 + демо-брони).
 // DTO-типы приложения живут в lib/types.ts, enum-значения — в lib/enums.ts.
 
-/** Стеночное время Almaty → инстант. */
-const at = (y: number, m: number, d: number, h: number, min = 0) =>
-  fromAlmaty(new Date(y, m - 1, d, h, min, 0, 0));
+// Брони привязаны к дате запуска seed'а (offset в днях от «сегодня» по Алматы),
+// чтобы календарь после сидинга всегда показывал живые данные.
+const TODAY_WALL = toAlmaty(new Date());
+
+/** Стеночное время Almaty (offset дней от сегодня) → инстант. */
+const day = (offset: number, h: number, min = 0) => {
+  const wall = new Date(TODAY_WALL);
+  wall.setDate(wall.getDate() + offset);
+  wall.setHours(h, min, 0, 0);
+  return fromAlmaty(wall);
+};
 
 // ───────────────────────── Объекты (ТЗ §5.8) ──────────────────────────
 
@@ -82,60 +90,174 @@ export const MOCK_USERS: MockUser[] = [
 
 // ДР хранятся как UTC-полночь (календарная дата). new Date(Date.UTC(y,m0,d)).
 export const MOCK_CLIENTS: MockClient[] = [
-  {id: 'c-1', name: 'Алихан Серіков', phone: '+77011234567', dateOfBirth: new Date(Date.UTC(1990, 2, 15))},
+  {id: 'c-1', name: 'Алихан Серіков', phone: '+77011234567', tags: ['VIP', 'постоянный'], dateOfBirth: new Date(Date.UTC(1990, 2, 15))},
   {id: 'c-2', name: 'Дмитрий Ким', phone: '+77019876543', dateOfBirth: new Date(Date.UTC(1988, 6, 3))},
   {id: 'c-3', name: 'Айгерім Нур', phone: '+77017778899', dateOfBirth: new Date(Date.UTC(1995, 10, 22))},
+  {id: 'c-4', name: 'Санжар Ахметов', phone: '+77021112233', note: 'Просит второй этаж'},
+  {id: 'c-5', name: 'Мария Ли', phone: '+77055556677', tags: ['блогер'], dateOfBirth: new Date(Date.UTC(1997, 4, 9))},
+  {id: 'c-6', name: 'Ерлан Досжанов', phone: '+77770001122', note: 'ТОО «QazTrade» — корпоративы', tags: ['B2B']},
+  {id: 'c-7', name: 'Жанна Абишева', phone: '+77081234500'},
+  {id: 'c-8', name: 'Тимур Бекетов', phone: '+77473217654', dateOfBirth: new Date(Date.UTC(1992, 0, 30))},
 ];
 
-// ───────────────────────── Демо-брони (вокруг 22.06.2026) ──────────────
+// ───────────────────────── Демо-брони (относительно сегодня) ───────────
+// Прошлая неделя — завершённые/отменённые, сегодня — активные, впереди —
+// новые/подтверждённые. Интервалы внутри одного объекта не пересекаются
+// (exclusion constraint booking_no_overlap).
 
 export const MOCK_BOOKINGS: MockBooking[] = [
+  // ── 7 VIP (35 000 ₸/ч) ──
   {
     id: 'b-1', resourceId: 'r-7vip', clientId: 'c-1',
-    startAt: at(2026, 6, 22, 22, 0), endAt: at(2026, 6, 23, 2, 0), // через полночь
-    status: 'CONFIRMED', source: 'PHONE', tariff: 'HOURLY', guests: 18,
-    total: 140000, deposit: 0, prepayment: 50000, comment: 'День рождения',
+    startAt: day(-3, 18), endAt: day(-3, 23),
+    status: 'COMPLETED', source: 'PHONE', tariff: 'HOURLY', guests: 20,
+    total: 175000, deposit: 0, prepayment: 0, paymentMethod: 'CASH',
+    discountType: 'NONE', discountValue: 0, comment: 'Постоянный гость',
+    addons: [],
+  },
+  {
+    id: 'b-2', resourceId: 'r-7vip', clientId: 'c-4',
+    startAt: day(-1, 22), endAt: day(0, 2), // через полночь
+    status: 'COMPLETED', source: 'INSTAGRAM', tariff: 'HOURLY', guests: 14,
+    total: 140000, deposit: 0, prepayment: 50000, paymentMethod: 'KASPI',
     discountType: 'NONE', discountValue: 0,
     addons: [{addonId: 'a-hookah', qty: 2, priceAtBooking: 15000}],
   },
   {
-    id: 'b-2', resourceId: 'r-25vip', clientId: 'c-2',
-    startAt: at(2026, 6, 22, 14, 0), endAt: at(2026, 6, 22, 18, 0),
-    status: 'PREPAID', source: 'WHATSAPP', tariff: 'HOURLY', guests: 10,
-    total: 100000, deposit: 50000, prepayment: 50000,
+    id: 'b-3', resourceId: 'r-7vip', clientId: 'c-2',
+    startAt: day(0, 20), endAt: day(1, 0), // сегодня вечером, через полночь
+    status: 'CONFIRMED', source: 'WHATSAPP', tariff: 'HOURLY', guests: 18,
+    total: 140000, deposit: 0, prepayment: 50000, paymentMethod: 'KASPI',
+    discountType: 'NONE', discountValue: 0, comment: 'День рождения',
+    addons: [{addonId: 'a-hookah', qty: 2, priceAtBooking: 15000}],
+  },
+  {
+    id: 'b-4', resourceId: 'r-7vip', clientId: 'c-6',
+    startAt: day(1, 16), endAt: day(1, 22),
+    status: 'PREPAID', source: 'B2B', tariff: 'HOURLY', guests: 22,
+    total: 210000, deposit: 0, prepayment: 100000, paymentMethod: 'BANK',
+    discountType: 'NONE', discountValue: 0, comment: 'Корпоратив QazTrade',
+    addons: [{addonId: 'a-music', qty: 1, priceAtBooking: 20000}],
+  },
+  {
+    id: 'b-5', resourceId: 'r-7vip', clientId: 'c-5',
+    startAt: day(3, 12), endAt: day(4, 12), // сутки
+    status: 'PREPAID', source: 'GOOGLE_SITE', tariff: 'FULL_DAY', guests: 16,
+    total: 300000, deposit: 0, prepayment: 150000, paymentMethod: 'BANK',
+    discountType: 'NONE', discountValue: 0,
+    addons: [],
+  },
+
+  // ── 2/5 VIP (25 000 ₸/ч) ──
+  {
+    id: 'b-6', resourceId: 'r-25vip', clientId: 'c-7',
+    startAt: day(-2, 14), endAt: day(-2, 18),
+    status: 'NO_SHOW', source: 'PHONE', tariff: 'HOURLY', guests: 8,
+    total: 100000, deposit: 50000, prepayment: 0,
+    discountType: 'NONE', discountValue: 0, comment: 'Не пришли, перенос',
+    addons: [],
+  },
+  {
+    id: 'b-7', resourceId: 'r-25vip', clientId: 'c-3',
+    startAt: day(0, 14), endAt: day(0, 18), // сегодня днём
+    status: 'ARRIVED', source: 'WHATSAPP', tariff: 'HOURLY', guests: 10,
+    total: 100000, deposit: 50000, prepayment: 50000, paymentMethod: 'KASPI',
+    discountType: 'NONE', discountValue: 0,
+    addons: [{addonId: 'a-spa', qty: 2, priceAtBooking: 20000}],
+  },
+  {
+    id: 'b-8', resourceId: 'r-25vip', clientId: 'c-8',
+    startAt: day(1, 19), endAt: day(1, 23),
+    status: 'NEW', source: 'TWO_GIS', tariff: 'HOURLY', guests: 12,
+    total: 100000, deposit: 50000, prepayment: 0,
     discountType: 'NONE', discountValue: 0,
     addons: [],
   },
   {
-    id: 'b-3', resourceId: 'r-6vip', clientId: 'c-3',
-    startAt: at(2026, 6, 22, 20, 0), endAt: at(2026, 6, 22, 23, 0),
-    status: 'NEW', source: 'INSTAGRAM', tariff: 'HOURLY', guests: 12,
-    total: 50000, deposit: 50000, prepayment: 0,
+    id: 'b-9', resourceId: 'r-25vip', clientId: 'c-2',
+    startAt: day(4, 18), endAt: day(4, 22),
+    status: 'CONFIRMED', source: 'RETURNING', tariff: 'HOURLY', guests: 9,
+    total: 100000, deposit: 50000, prepayment: 0,
+    discountType: 'NONE', discountValue: 0,
+    addons: [],
+  },
+
+  // ── 3/4 VIP (25 000 ₸/ч) ──
+  {
+    id: 'b-10', resourceId: 'r-34vip', clientId: 'c-6',
+    startAt: day(-4, 12), endAt: day(-3, 12), // сутки
+    status: 'COMPLETED', source: 'B2B', tariff: 'FULL_DAY', guests: 12,
+    total: 180000, deposit: 0, prepayment: 90000, paymentMethod: 'BANK',
+    discountType: 'NONE', discountValue: 0, comment: 'Тимбилдинг',
+    addons: [],
+  },
+  {
+    id: 'b-11', resourceId: 'r-34vip', clientId: 'c-5',
+    startAt: day(0, 17), endAt: day(0, 21), // сегодня вечером
+    status: 'CONFIRMED', source: 'REFERRAL', tariff: 'HOURLY', guests: 10,
+    total: 100000, deposit: 50000, prepayment: 0,
+    discountType: 'NONE', discountValue: 0,
+    addons: [],
+  },
+  {
+    id: 'b-12', resourceId: 'r-34vip', clientId: 'c-1',
+    startAt: day(2, 12), endAt: day(2, 18),
+    status: 'PREPAID', source: 'REGULAR', tariff: 'HOURLY', guests: 12,
+    total: 135000, deposit: 0, prepayment: 70000, paymentMethod: 'KASPI',
+    discountType: 'PERCENT', discountValue: 10, // 150 000 − 10%
+    comment: 'Скидка постоянному гостю',
+    addons: [{addonId: 'a-spa', qty: 2, priceAtBooking: 20000}],
+  },
+
+  // ── 6 VIP, караоке (10 000 ₸/ч) ──
+  {
+    id: 'b-13', resourceId: 'r-6vip', clientId: 'c-8',
+    startAt: day(-1, 20), endAt: day(-1, 23),
+    status: 'CANCELLED', source: 'INSTAGRAM', tariff: 'HOURLY', guests: 10,
+    total: 30000, deposit: 50000, prepayment: 0,
+    discountType: 'NONE', discountValue: 0, comment: 'Отмена за день',
+    addons: [],
+  },
+  {
+    id: 'b-14', resourceId: 'r-6vip', clientId: 'c-7',
+    startAt: day(0, 21), endAt: day(1, 1), // сегодня ночью, через полночь
+    status: 'ARRIVED', source: 'WIDGET', tariff: 'HOURLY', guests: 13,
+    total: 40000, deposit: 50000, prepayment: 0, paymentMethod: 'CASH',
     discountType: 'NONE', discountValue: 0,
     addons: [{addonId: 'a-belly', qty: 1, priceAtBooking: 25000}],
   },
   {
-    id: 'b-4', resourceId: 'r-banquet', clientId: 'c-1',
-    startAt: at(2026, 6, 22, 19, 0), endAt: at(2026, 6, 22, 23, 30),
-    status: 'CONFIRMED', source: 'ADMIN', tariff: 'CUSTOM', guests: 40,
-    total: 350000, deposit: 200000, prepayment: 100000, comment: 'Корпоратив',
-    discountType: 'NONE', discountValue: 0,
-    addons: [{addonId: 'a-music', qty: 1, priceAtBooking: 20000}],
-  },
-  {
-    id: 'b-5', resourceId: 'r-34vip', clientId: 'c-2',
-    startAt: at(2026, 6, 23, 12, 0), endAt: at(2026, 6, 24, 12, 0), // сутки
-    status: 'PREPAID', source: 'PHONE', tariff: 'FULL_DAY', guests: 11,
-    total: 180000, deposit: 0, prepayment: 90000,
-    discountType: 'NONE', discountValue: 0,
+    id: 'b-15', resourceId: 'r-6vip', clientId: 'c-4',
+    startAt: day(2, 20), endAt: day(2, 23),
+    status: 'NEW', source: 'WIDGET', tariff: 'HOURLY', guests: 8,
+    total: 30000, deposit: 50000, prepayment: 0,
+    discountType: 'NONE', discountValue: 0, comment: 'Онлайн-заявка',
     addons: [],
   },
+
+  // ── Банкетный (депозит 200 000 ₸) ──
   {
-    id: 'b-6', resourceId: 'r-7vip', clientId: 'c-3',
-    startAt: at(2026, 6, 21, 16, 0), endAt: at(2026, 6, 21, 22, 0),
-    status: 'COMPLETED', source: 'PHONE', tariff: 'HOURLY', guests: 20,
-    total: 190000, deposit: 0, prepayment: 0, comment: 'Постоянный гость — скидка',
-    discountType: 'AMOUNT', discountValue: 20000, // 210 000 − 20 000
+    id: 'b-16', resourceId: 'r-banquet', clientId: 'c-6',
+    startAt: day(-5, 18), endAt: day(-5, 23, 30),
+    status: 'COMPLETED', source: 'B2B', tariff: 'CUSTOM', guests: 40,
+    total: 350000, deposit: 200000, prepayment: 200000, paymentMethod: 'BANK',
+    discountType: 'NONE', discountValue: 0, comment: 'Корпоратив, банкет на 40 персон',
+    addons: [{addonId: 'a-vocal', qty: 1, priceAtBooking: 30000}],
+  },
+  {
+    id: 'b-17', resourceId: 'r-banquet', clientId: 'c-1',
+    startAt: day(1, 19), endAt: day(1, 23, 30),
+    status: 'CONFIRMED', source: 'ADMIN', tariff: 'CUSTOM', guests: 35,
+    total: 300000, deposit: 200000, prepayment: 150000, paymentMethod: 'KASPI',
+    discountType: 'NONE', discountValue: 0, comment: 'Юбилей',
+    addons: [{addonId: 'a-gogo', qty: 2, priceAtBooking: 25000}],
+  },
+  {
+    id: 'b-18', resourceId: 'r-banquet', clientId: 'c-5',
+    startAt: day(5, 17), endAt: day(5, 23),
+    status: 'NEW', source: 'BLOGGERS', tariff: 'CUSTOM', guests: 30,
+    total: 250000, deposit: 200000, prepayment: 0,
+    discountType: 'NONE', discountValue: 0, comment: 'Съёмка + вечеринка',
     addons: [],
   },
 ];
