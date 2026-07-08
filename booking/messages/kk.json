@@ -232,7 +232,8 @@
   "payment": {
     "KASPI": "Каспи",
     "CASH": "Қолма-қол",
-    "BANK": "Банк"
+    "BANK": "Банк",
+    "CASH_KASPI": "Қолма-қол/Каспи"
   },
   "amenity": {
     "karaoke": "Караоке",

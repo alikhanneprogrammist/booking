@@ -232,7 +232,8 @@
   "payment": {
     "KASPI": "Каспи",
     "CASH": "Нал",
-    "BANK": "Банк"
+    "BANK": "Банк",
+    "CASH_KASPI": "Нал/Каспи"
   },
   "amenity": {
     "karaoke": "Караоке",

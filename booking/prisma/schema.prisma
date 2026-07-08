@@ -62,6 +62,7 @@ enum PaymentMethod {
   KASPI // Каспи
   CASH // Наличные
   BANK // Банк (перевод/счёт)
+  CASH_KASPI // Нал/Каспи (смешанная оплата)
 }
 
 enum AddonUnit {

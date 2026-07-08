@@ -20,7 +20,7 @@ export const BOOKING_SOURCES = [
 ] as const;
 export type BookingSource = (typeof BOOKING_SOURCES)[number];
 
-export const PAYMENT_METHODS = ['KASPI', 'CASH', 'BANK'] as const;
+export const PAYMENT_METHODS = ['KASPI', 'CASH', 'BANK', 'CASH_KASPI'] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
 export const ROLES = ['ADMIN', 'MANAGER'] as const;

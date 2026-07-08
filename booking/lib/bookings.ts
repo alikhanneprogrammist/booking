@@ -102,7 +102,7 @@ export const bookingInput = z.object({
   // optional (не default 0): отличаем «не задано» (виджет → подставить %) от явного 0.
   prepayment: z.number().nonnegative().optional(),
   // nullable: null — «сбросить», отсутствие ключа — «не менять» (в updateBooking).
-  paymentMethod: z.enum(['KASPI', 'CASH', 'BANK']).nullable().optional(),
+  paymentMethod: z.enum(['KASPI', 'CASH', 'BANK', 'CASH_KASPI']).nullable().optional(),
   discountType: z.enum(['NONE', 'PERCENT', 'AMOUNT']).default('NONE'),
   discountValue: z.number().nonnegative().default(0),
   comment: z.string().max(2000).optional(),
