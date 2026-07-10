@@ -1,5 +1,6 @@
 import {getTranslations, setRequestLocale} from 'next-intl/server';
 import {getResources, getSettings} from '@/lib/queries';
+import BrandLogo from '@/components/BrandLogo';
 import LocaleSwitcher from '@/components/LocaleSwitcher';
 import BookingRequestForm from './BookingRequestForm';
 
@@ -39,9 +40,11 @@ export default async function PublicBookPage({
       <div className="w-full max-w-md rounded-xl border border-border bg-card p-8 shadow-sm">
         <div className="flex items-center justify-between gap-2.5">
           <div className="flex items-center gap-2.5">
-            {settings.logoUrl && (
+            {settings.logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={settings.logoUrl} alt="" className="h-8 w-8 shrink-0 rounded object-contain" />
+            ) : (
+              <BrandLogo className="h-8 w-8 shrink-0" />
             )}
             <div className="text-base font-semibold tracking-tight">{company}</div>
           </div>

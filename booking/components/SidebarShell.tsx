@@ -2,6 +2,7 @@
 
 import {useEffect, useState} from 'react';
 import {usePathname} from '@/i18n/navigation';
+import BrandLogo from '@/components/BrandLogo';
 
 /**
  * Адаптивная оболочка: на десктопе (md+) — статичный сайдбар 240px, как раньше;
@@ -43,9 +44,11 @@ export default function SidebarShell({
             <line x1="3" y1="18" x2="21" y2="18" />
           </svg>
         </button>
-        {logoUrl && (
+        {logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={logoUrl} alt="" className="h-6 w-6 shrink-0 rounded object-contain" />
+        ) : (
+          <BrandLogo />
         )}
         <span className="truncate text-sm font-semibold tracking-tight">{companyName}</span>
       </header>
