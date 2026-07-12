@@ -36,6 +36,9 @@ export default function ResourceTimeline({
 
   const name = (r: MockResource) => (locale === 'kk' ? r.nameKk : r.nameRu);
   const groups = KINDS.map((k) => ({k, items: resources.filter((r) => r.kind === k)})).filter((g) => g.items.length);
+  // Колонки строго в порядке групп шапки (комплексы, затем караоке): если админ
+  // перемешал sortOrder разных типов, заголовки групп иначе съедут с колонок.
+  const cols = groups.flatMap((g) => g.items);
 
   function handleColumnClick(resourceId: string, e: React.MouseEvent<HTMLDivElement>) {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -56,27 +59,30 @@ export default function ResourceTimeline({
   return (
     // Один скролл-контейнер на шапку и тело: колонки всегда одной ширины (скроллбар не сдвигает тело).
     <div ref={scrollRef} className="h-full overflow-auto">
-      <div className="min-w-[560px]">
+      {/* Минимум ~96px на колонку: при многих объектах появляется гор. скролл вместо каши */}
+      <div style={{minWidth: 56 + resources.length * 96}}>
       {/* Заголовок: группы + объекты (липкий, поверх броней и линии «сейчас») */}
       <div className="sticky top-0 z-20 border-b border-border bg-background">
         <div className="flex">
           <div className="w-14 shrink-0" />
           {groups.map((g) => (
             <div key={g.k} style={{flexGrow: g.items.length, flexBasis: 0}}
-              className="border-l border-border px-2 py-1 text-[11px] font-medium uppercase tracking-wide text-muted">
+              className="min-w-0 truncate border-l border-border px-2 py-1 text-[11px] font-medium uppercase tracking-wide text-muted">
               {tg(g.k)}
             </div>
           ))}
         </div>
+        {/* min-w-0 на ячейках: без него flex не ужимает ячейку уже полного названия,
+            шапка становится шире тела и колонки съезжают относительно броней */}
         <div className="flex">
           <div className="w-14 shrink-0" />
-          {resources.map((r) => (
-            <div key={r.id} className="flex-1 border-l border-border px-2 py-1.5">
-              <div className="flex items-center gap-1.5 text-sm font-medium">
-                <span className="h-2 w-2 rounded-full" style={{backgroundColor: r.color}} />
-                <span className="truncate">{name(r)}</span>
+          {cols.map((r) => (
+            <div key={r.id} className="min-w-0 flex-1 border-l border-border px-2 py-1.5">
+              <div className="flex min-w-0 items-center gap-1.5 text-sm font-medium">
+                <span className="h-2 w-2 shrink-0 rounded-full" style={{backgroundColor: r.color}} />
+                <span className="truncate" title={name(r)}>{name(r)}</span>
               </div>
-              <div className="text-[11px] text-muted">до {r.capacity} чел.</div>
+              <div className="truncate text-[11px] text-muted">до {r.capacity} чел.</div>
             </div>
           ))}
         </div>
@@ -97,7 +103,7 @@ export default function ResourceTimeline({
             ))}
           </div>
 
-          {resources.map((r) => (
+          {cols.map((r) => (
             <div
               key={r.id}
               onClick={(e) => handleColumnClick(r.id, e)}
