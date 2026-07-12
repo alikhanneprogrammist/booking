@@ -43,6 +43,8 @@ export default function BookingDialog({
 
   const [resourceId, setResourceId] = useState(init?.resourceId ?? prefill?.resourceId ?? resources[0].id);
   const [clientId, setClientId] = useState(init?.clientId ?? clients[0]?.id ?? '');
+  // Теги клиента: предзаполняются текущими, при сохранении брони пишутся в карточку.
+  const [tags, setTags] = useState(() => (clients.find((c) => c.id === clientId)?.tags ?? []).join(', '));
   // Дата брони + время начала + длительность в часах; конец считается автоматически
   // (ночные и многодневные брони — просто большим числом часов).
   const [date, setDate] = useState(() => toLocalInput(defaultStart).slice(0, 10));
@@ -166,6 +168,7 @@ export default function BookingDialog({
         discountType,
         discountValue: discountType === 'NONE' ? 0 : Number(discountValue) || 0,
         comment: comment || undefined,
+        clientTags: tags.split(',').map((s) => s.trim()).filter(Boolean),
         addons: addons
           .filter((a) => (qty[a.id] ?? 0) > 0)
           .map((a) => ({addonId: a.id, qty: qty[a.id], priceAtBooking: a.price})),
@@ -247,8 +250,21 @@ export default function BookingDialog({
             clients={clients}
             value={clientId}
             initialName={clients.find((c) => c.id === clientId)?.name}
-            onChange={setClientId}
+            onChange={(id) => {
+              setClientId(id);
+              // Смена клиента → поле перезаполняется его тегами.
+              setTags((clients.find((c) => c.id === id)?.tags ?? []).join(', '));
+            }}
           />
+          <label className={labelCls}>
+            {tb('clientTags')}
+            <input
+              className={fieldCls}
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              placeholder="VIP, постоянный"
+            />
+          </label>
           <label className={labelCls}>
             {tb('date')}
             <input type="date" className={fieldCls} value={date} onChange={(e) => setDate(e.target.value)} />

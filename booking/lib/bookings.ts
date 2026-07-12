@@ -107,6 +107,8 @@ export const bookingInput = z.object({
   discountValue: z.number().nonnegative().default(0),
   comment: z.string().max(2000).optional(),
   addons: z.array(ADDON).default([]),
+  // Теги клиента из формы брони: undefined — не трогать, массив — заменить у клиента.
+  clientTags: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
 });
 
 export type BookingInput = z.input<typeof bookingInput>;
@@ -250,6 +252,10 @@ export async function createBooking(raw: BookingInput, createdById: string) {
       });
       // Журнал: создание брони.
       await tx.bookingAudit.create({data: {bookingId: b.id, userId: createdById, action: 'CREATE'}});
+      // Синхронизация тегов клиента из формы брони (поле предзаполняется текущими тегами).
+      if (data.clientTags !== undefined) {
+        await tx.client.update({where: {id: data.clientId}, data: {tags: data.clientTags}});
+      }
       return b;
     });
     return {booking, price};
@@ -383,6 +389,13 @@ export async function updateBooking(id: string, rawInput: Partial<BookingInput>,
       if (actorId && changes.length) {
         await tx.bookingAudit.create({
           data: {bookingId: id, userId: actorId, action: 'UPDATE', changes: changes as Prisma.InputJsonValue},
+        });
+      }
+      // Синхронизация тегов клиента (клиент брони — с учётом возможной смены в патче).
+      if (raw.clientTags !== undefined) {
+        await tx.client.update({
+          where: {id: raw.clientId ?? existing.clientId},
+          data: {tags: raw.clientTags},
         });
       }
       return updated;
