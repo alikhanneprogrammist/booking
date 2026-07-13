@@ -4,6 +4,7 @@ import {useState} from 'react';
 import {useTranslations} from 'next-intl';
 import {saveClient} from '@/lib/actions';
 import {toInputValue, parseInputDate} from '@/lib/birthdays';
+import {formatPhoneDraft} from '@/lib/phone';
 import type {MockClient} from '@/lib/types';
 import {dialogField, dialogLabel} from '@/lib/ui';
 
@@ -17,7 +18,7 @@ export default function ClientDialog({
 }) {
   const t = useTranslations('clients');
   const [name, setName] = useState(client?.name ?? '');
-  const [phone, setPhone] = useState(client?.phone ?? '');
+  const [phone, setPhone] = useState(formatPhoneDraft(client?.phone ?? ''));
   const [note, setNote] = useState(client?.note ?? '');
   const [tags, setTags] = useState((client?.tags ?? []).join(', '));
   const [dob, setDob] = useState(client?.dateOfBirth ? toInputValue(client.dateOfBirth) : '');
@@ -61,7 +62,7 @@ export default function ClientDialog({
           </label>
           <label className={label}>
             {t('phone')}
-            <input className={field} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+7 700 000 00 00" />
+            <input className={field} type="tel" value={phone} onChange={(e) => setPhone(formatPhoneDraft(e.target.value))} placeholder="+7 700 000 00 00" />
           </label>
           <label className={label}>
             {t('note')}
@@ -83,7 +84,7 @@ export default function ClientDialog({
           </button>
           <button
             onClick={save}
-            disabled={saving || !name.trim() || !phone.trim()}
+            disabled={saving || !name.trim() || phone.replace(/\D/g, '').length <= 1}
             className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
           >
             {mode === 'create' ? t('create') : t('save')}

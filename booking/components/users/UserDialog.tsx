@@ -3,6 +3,7 @@
 import {useState} from 'react';
 import {useTranslations} from 'next-intl';
 import {saveUser} from '@/lib/actions';
+import {formatPhoneDraft} from '@/lib/phone';
 import type {MockUser} from '@/lib/types';
 import {dialogField, dialogLabel} from '@/lib/ui';
 
@@ -16,7 +17,7 @@ export default function UserDialog({
   const t = useTranslations('users');
   const u = user;
   const [name, setName] = useState(u?.name ?? '');
-  const [phone, setPhone] = useState(u?.phone ?? '');
+  const [phone, setPhone] = useState(formatPhoneDraft(u?.phone ?? ''));
   const [email, setEmail] = useState(u?.email ?? '');
   const [role, setRole] = useState<'ADMIN' | 'MANAGER'>(u?.role ?? 'MANAGER');
   const [isActive, setIsActive] = useState(u?.isActive ?? true);
@@ -77,7 +78,7 @@ export default function UserDialog({
         <>
         <div className="flex flex-col gap-3">
           <label className={label}>{t('name')}<input className={field} value={name} onChange={(e) => setName(e.target.value)} autoFocus /></label>
-          <label className={label}>{t('phone')}<input className={field} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+7 700 000 00 00" /></label>
+          <label className={label}>{t('phone')}<input className={field} type="tel" value={phone} onChange={(e) => setPhone(formatPhoneDraft(e.target.value))} placeholder="+7 700 000 00 00" /></label>
           <label className={label}>{t('email')}<input className={field} value={email} onChange={(e) => setEmail(e.target.value)} /></label>
           <label className={label}>{t('role')}
             <select className={field} value={role} onChange={(e) => setRole(e.target.value as 'ADMIN' | 'MANAGER')}>
@@ -98,7 +99,7 @@ export default function UserDialog({
         </div>
         <div className="mt-4 flex justify-end gap-2">
           <button onClick={onClose} className="rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-subtle">{t('back')}</button>
-          <button onClick={save} disabled={saving || !name.trim() || !phone.trim()} className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50">
+          <button onClick={save} disabled={saving || !name.trim() || phone.replace(/\D/g, '').length <= 1} className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50">
             {u ? t('save') : t('create')}
           </button>
         </div>

@@ -4,6 +4,7 @@ import {useMemo, useState} from 'react';
 import {useTranslations} from 'next-intl';
 import {useRouter} from '@/i18n/navigation';
 import {saveClient} from '@/lib/actions';
+import {formatPhoneDraft} from '@/lib/phone';
 import {dialogField, dialogLabel} from '@/lib/ui';
 import type {MockClient} from '@/lib/types';
 
@@ -30,7 +31,7 @@ export default function ClientPicker({
   // Инлайн-создание клиента
   const [newOpen, setNewOpen] = useState(false);
   const [nName, setNName] = useState('');
-  const [nPhone, setNPhone] = useState('');
+  const [nPhone, setNPhone] = useState('+7');
   const [nErr, setNErr] = useState<string | null>(null);
 
   // Подстрочный поиск: по имени и по цифрам телефона; показываем первые 8.
@@ -64,7 +65,7 @@ export default function ClientPicker({
     setQuery(res.client.name);
     setNewOpen(false);
     setNName('');
-    setNPhone('');
+    setNPhone('+7');
     // Подтягиваем нового клиента в список (перечитываем серверные данные).
     router.refresh();
   }
@@ -80,11 +81,11 @@ export default function ClientPicker({
       {newOpen ? (
         <div className="flex flex-col gap-1.5 rounded-md border border-border bg-subtle p-2">
           <input className={dialogField} placeholder={tb('newClientName')} value={nName} onChange={(e) => setNName(e.target.value)} />
-          <input className={dialogField} placeholder={tb('newClientPhone')} value={nPhone} onChange={(e) => setNPhone(e.target.value)} />
+          <input className={dialogField} type="tel" placeholder={tb('newClientPhone')} value={nPhone} onChange={(e) => setNPhone(formatPhoneDraft(e.target.value))} />
           {nErr && <span role="alert" className="text-[11px] text-red-600">{nErr}</span>}
           <button
             type="button"
-            disabled={!nName.trim() || !nPhone.trim()}
+            disabled={!nName.trim() || nPhone.replace(/\D/g, '').length <= 1}
             onClick={createClient}
             className="rounded-md bg-primary px-2 py-1 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
           >

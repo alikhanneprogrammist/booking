@@ -1,7 +1,9 @@
 'use client';
 
+import {useState} from 'react';
 import {useFormState, useFormStatus} from 'react-dom';
 import {useLocale, useTranslations} from 'next-intl';
+import {formatPhoneDraft} from '@/lib/phone';
 import {authenticate} from './actions';
 
 function SubmitButton() {
@@ -22,6 +24,7 @@ export default function LoginForm() {
   const t = useTranslations('auth');
   const locale = useLocale();
   const [errorCode, action] = useFormState(authenticate, undefined);
+  const [phone, setPhone] = useState('+7');
 
   return (
     <form action={action} className="mt-6 flex flex-col gap-3">
@@ -34,6 +37,8 @@ export default function LoginForm() {
           type="tel"
           required
           autoComplete="username"
+          value={phone}
+          onChange={(e) => setPhone(formatPhoneDraft(e.target.value))}
           placeholder="+7 700 000 00 00"
           className="rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/40"
         />

@@ -3,6 +3,7 @@
 import {useEffect, useState} from 'react';
 import {useLocale, useTranslations} from 'next-intl';
 import {fromLocalInput, fmtTime} from '@/lib/calendar';
+import {formatPhoneDraft} from '@/lib/phone';
 import {submitBookingRequest, type PublicBookingError} from '@/lib/public-actions';
 
 type ResourceOption = {
@@ -52,7 +53,7 @@ export default function BookingRequestForm({resources}: {resources: ResourceOpti
 
   const [resourceId, setResourceId] = useState(resources[0]?.id ?? '');
   const [name, setName] = useState('');
-  const [phone, setPhone] = useState('+7'); // префикс по умолчанию; можно стереть
+  const [phone, setPhone] = useState('+7'); // префикс подставляется и восстанавливается при вводе
   const [date, setDate] = useState('');
   const [start, setStart] = useState('20:00');
   const [hours, setHours] = useState('3');
@@ -181,7 +182,7 @@ export default function BookingRequestForm({resources}: {resources: ResourceOpti
         <span className="text-xs font-medium text-muted">{t('phone')}</span>
         <input
           value={phone}
-          onChange={(e) => setPhone(e.target.value)}
+          onChange={(e) => setPhone(formatPhoneDraft(e.target.value))}
           type="tel"
           required
           placeholder="+7 700 000 00 00"
