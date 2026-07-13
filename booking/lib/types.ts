@@ -76,5 +76,7 @@ export interface MockBooking {
   discountType: DiscountType;
   discountValue: number;
   comment?: string;
+  prepaidAt?: Date | null; // когда получена предоплата (для отчёта «Предоплаты»)
+  createdById?: string; // ответственный (кто оформил бронь)
   addons: {addonId: string; qty: number; priceAtBooking: number}[];
 }

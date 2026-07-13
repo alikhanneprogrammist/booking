@@ -235,6 +235,8 @@ export async function createBooking(raw: BookingInput, createdById: string) {
           total,
           deposit: data.deposit,
           prepayment,
+          // Дата получения предоплаты = сегодня (день оформления), не дата брони.
+          prepaidAt: prepayment > 0 ? new Date() : null,
           paymentMethod: data.paymentMethod ?? null,
           discountType: data.discountType,
           discountValue: data.discountValue,
@@ -340,6 +342,12 @@ export async function updateBooking(id: string, rawInput: Partial<BookingInput>,
     ...(raw.total != null ? {total: raw.total} : recalcTotal != null ? {total: recalcTotal} : {}),
     ...(raw.deposit != null ? {deposit: raw.deposit} : {}),
     ...(raw.prepayment != null ? {prepayment: raw.prepayment} : {}),
+    // Появилась предоплата (0 → >0) — фиксируем сегодняшнюю дату получения;
+    // обнулили — сбрасываем; сумма изменилась при уже полученной — дату не трогаем.
+    ...(raw.prepayment != null && raw.prepayment > 0 && Number(existing.prepayment) === 0
+      ? {prepaidAt: new Date()}
+      : {}),
+    ...(raw.prepayment != null && raw.prepayment === 0 ? {prepaidAt: null} : {}),
     ...(raw.paymentMethod !== undefined ? {paymentMethod: raw.paymentMethod} : {}),
     ...(raw.discountType != null ? {discountType: raw.discountType} : {}),
     ...(raw.discountValue != null ? {discountValue: raw.discountValue} : {}),

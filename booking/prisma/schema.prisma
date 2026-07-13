@@ -184,6 +184,8 @@ model Booking {
   total         Decimal        @default(0) @db.Decimal(12, 2)
   deposit       Decimal        @default(0) @db.Decimal(12, 2)
   prepayment    Decimal        @default(0) @db.Decimal(12, 2)
+  // Когда предоплата реально получена (для бухгалтерии: предзаказ сегодня — бронь в будущем).
+  prepaidAt     DateTime?      @db.Timestamptz(6)
   paymentMethod PaymentMethod? // Каспи/Нал/Банк; null — не задано
 
   // Скидка по брони (§4.9): тип + значение (% или сумма ₸). Пишется в историю клиента.
@@ -203,6 +205,7 @@ model Booking {
   @@index([resourceId, startAt, endAt])
   @@index([clientId])
   @@index([createdById])
+  @@index([prepaidAt])
 }
 
 // ───────────────────────── Settings — настройки заведения ──────────────

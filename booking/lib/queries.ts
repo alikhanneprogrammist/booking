@@ -87,6 +87,8 @@ export function toBooking(b: BookingRow): MockBooking {
     discountType: b.discountType,
     discountValue: num(b.discountValue),
     comment: b.comment ?? undefined,
+    prepaidAt: b.prepaidAt,
+    createdById: b.createdById,
     addons: b.addons.map((a) => ({
       addonId: a.addonId,
       qty: a.qty,
@@ -141,6 +143,16 @@ export async function getBookingsStartingBetween(from?: Date, to?: Date): Promis
     where: {startAt: {...(from ? {gte: from} : {}), ...(to ? {lt: to} : {})}},
     include: {addons: true},
     orderBy: {startAt: 'asc'},
+  });
+  return rows.map(toBooking);
+}
+
+/** Отчёт «Предоплаты»: брони с предоплатой, полученной в окне [from, to) — по дате получения денег. */
+export async function getBookingsPrepaidBetween(from: Date, to: Date): Promise<MockBooking[]> {
+  const rows = await prisma.booking.findMany({
+    where: {prepaidAt: {gte: from, lt: to}, prepayment: {gt: 0}},
+    include: {addons: true},
+    orderBy: {prepaidAt: 'asc'},
   });
   return rows.map(toBooking);
 }
