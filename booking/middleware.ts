@@ -9,7 +9,7 @@ const {auth} = NextAuth(authConfig);
 
 const LOCALE_RE = /^\/(ru|kk)(\/.*)?$/;
 // Все админ-разделы теперь под /settings (Заведение/Объекты/Сотрудники/Публичная страница).
-const ADMIN_PREFIXES = ['/settings', '/analytics'];
+const ADMIN_PREFIXES = ['/settings', '/analytics', '/prepayments'];
 // Публичные пути (без логина): страница входа и виджет заявок клиента.
 const PUBLIC_PATHS = ['/login', '/book'];
 
@@ -28,6 +28,14 @@ export default auth((req) => {
   const locale = nextUrl.pathname.match(LOCALE_RE)?.[1] ?? routing.defaultLocale;
   const isLoginPage = path === '/login';
   const isPublic = PUBLIC_PATHS.includes(path);
+
+  // Казахский язык оставлен только для публичной страницы заявок /book —
+  // остальной интерфейс (админка, логин) работает только по-русски.
+  if (locale === 'kk' && path !== '/book') {
+    const url = new URL(`/ru${path === '/' ? '' : path}`, nextUrl);
+    url.search = nextUrl.search;
+    return NextResponse.redirect(url);
+  }
 
   // FR-AUTH-3: неавторизованный → /login (кроме публичных страниц: логин, /book).
   if (!isLoggedIn && !isPublic) {

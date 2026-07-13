@@ -2,7 +2,6 @@ import {getTranslations} from 'next-intl/server';
 import BrandLogo from '@/components/BrandLogo';
 import Sidebar from '@/components/Sidebar';
 import SidebarShell from '@/components/SidebarShell';
-import LocaleSwitcher from '@/components/LocaleSwitcher';
 import {currentUser} from '@/lib/auth-helpers';
 import {getSettings, getClients} from '@/lib/queries';
 import {toAlmaty} from '@/lib/time';
@@ -46,17 +45,29 @@ export default async function AppShell({
             {user.name} · {user.role}
           </div>
         )}
-        <div className="flex items-center justify-between">
-          <LocaleSwitcher />
-          <form action={doSignOut}>
-            <button
-              type="submit"
-              className="text-xs font-medium text-muted hover:text-foreground"
+        <form action={doSignOut}>
+          <button
+            type="submit"
+            className="flex items-center gap-2 text-xs font-medium text-muted hover:text-foreground"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
             >
-              {t('nav.logout')}
-            </button>
-          </form>
-        </div>
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <path d="M16 17l5-5-5-5" />
+              <path d="M21 12H9" />
+            </svg>
+            {t('nav.logout')}
+          </button>
+        </form>
       </div>
     </>
   );
