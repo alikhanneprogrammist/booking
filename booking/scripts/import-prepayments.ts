@@ -20,16 +20,10 @@ const prisma = new PrismaClient();
 
 // ─────────────────────────── Маппинг (правится здесь) ───────────────────────
 
-// «VIP №» из экселя → nameRu ресурса в БД. Всё, что не смэпилось (VIP 1, VIP 0,
-// пусто), уходит на скрытый служебный ресурс ARCHIVE_RESOURCE.
-const VIP_TO_RESOURCE: Record<string, string> = {
-  '2': '2/5 VIP',
-  '5': '2/5 VIP',
-  '3': '3/4 VIP',
-  '4': '3/4 VIP',
-  '6': '6 VIP',
-  '7': '7 VIP',
-};
+// Маппинг «VIP №» → ресурс строится ДИНАМИЧЕСКИ по названиям из БД:
+// цифры перед «VIP» в nameRu покрывают номера залов («2 VIP» → 2; «2/5 VIP» → 2 и 5;
+// «7 VIP Банкетный зал» → 7), «Б/з»/«банкет» уходит на ресурс со словом «банкет».
+// Всё, что не смэпилось (VIP 0, пусто), — на скрытый служебный ресурс ARCHIVE_RESOURCE.
 const BANQUET_RE = /б\s*[/.]\s*з|банкет/i; // «Б/з», «Б.З», «Банкетный зал»
 const ARCHIVE_RESOURCE = 'Архив (импорт)';
 
@@ -178,11 +172,22 @@ function mapPayment(typeRaw: string): PaymentMethod | null {
   return null;
 }
 
-// Возвращает nameRu ресурса или null (→ архив).
-function mapResourceName(vipRaw: string): string | null {
-  if (BANQUET_RE.test(vipRaw)) return 'Банкетный';
-  const digit = vipRaw.match(/(\d)\s*вип/i) ?? vipRaw.match(/вип\s*(\d)/i) ?? vipRaw.match(/(\d)/);
-  return digit ? (VIP_TO_RESOURCE[digit[1]] ?? null) : null;
+type ResourceRow = {id: string; nameRu: string};
+
+// Строит функцию «текст зала из экселя → ресурс из БД (или null → архив)».
+function buildResourceMapper(resources: ResourceRow[]) {
+  const byDigit = new Map<string, ResourceRow>();
+  for (const r of resources) {
+    const prefix = r.nameRu.match(/^[\d/\s]+(?=vip)/i)?.[0] ?? '';
+    for (const d of prefix.match(/\d/g) ?? []) byDigit.set(d, r);
+  }
+  const banquet = resources.find((r) => /банкет/i.test(r.nameRu)) ?? null;
+  return (vipRaw: string): ResourceRow | null => {
+    if (BANQUET_RE.test(vipRaw) && banquet) return banquet;
+    const digit =
+      vipRaw.match(/(\d)\s*вип/i) ?? vipRaw.match(/вип\s*(\d)/i) ?? vipRaw.match(/(\d)/);
+    return digit ? (byDigit.get(digit[1]) ?? null) : null;
+  };
 }
 
 // ─────────────────────────── Основной прогон ────────────────────────────────
@@ -215,8 +220,13 @@ async function main() {
     return true;
   });
 
+  // Ресурсы читаем и в dry-run — чтобы показать реальный маппинг залов на ЭТУ БД.
+  const resources: ResourceRow[] = await prisma.resource.findMany({select: {id: true, nameRu: true}});
+  const mapResource = buildResourceMapper(resources);
+
   // Сводка для сверки с экселем.
   const byMonth = new Map<string, {sum: number; n: number}>();
+  const byVip = new Map<string, {n: number; target: string}>();
   let toArchive = 0;
   for (const e of unique) {
     const m = `${e.paid.y}-${String(e.paid.m).padStart(2, '0')}`;
@@ -224,13 +234,22 @@ async function main() {
     agg.sum += e.amount;
     agg.n += 1;
     byMonth.set(m, agg);
-    if (!mapResourceName(e.vipRaw)) toArchive += 1;
+    const target = mapResource(e.vipRaw);
+    if (!target) toArchive += 1;
+    const label = e.vipRaw || '(пусто)';
+    const v = byVip.get(label) ?? {n: 0, target: target ? target.nameRu : `«${ARCHIVE_RESOURCE}»`};
+    v.n += 1;
+    byVip.set(label, v);
   }
   console.log(`Распознано строк: ${entries.length}, после дедупликации: ${unique.length}, пропущено: ${skipped.length}`);
   console.log(`Без зала (уйдут на «${ARCHIVE_RESOURCE}»): ${toArchive}`);
   console.log('Суммы по месяцам (дата оплаты):');
   for (const [m, {sum, n}] of Array.from(byMonth.entries()).sort()) {
     console.log(`  ${m}: ${sum.toLocaleString('ru-RU')} ₸ (${n} шт.)`);
+  }
+  console.log('Маппинг залов (значение из экселя → объект в БД):');
+  for (const [label, {n, target}] of Array.from(byVip.entries()).sort((a, b) => b[1].n - a[1].n)) {
+    console.log(`  ${label.slice(0, 40)} → ${target} (${n} шт.)`);
   }
   if (skipped.length) {
     console.log('Пропущенные строки (без суммы/даты):');
@@ -242,24 +261,17 @@ async function main() {
     return;
   }
 
-  // Ресурсы: существующие + служебный архивный (скрыт из календаря/форм).
-  const resources = await prisma.resource.findMany();
-  const resourceByName = new Map(resources.map((r) => [r.nameRu, r.id]));
-  if (!resourceByName.has(ARCHIVE_RESOURCE)) {
-    const archive = await prisma.resource.create({
+  // Служебный архивный ресурс для строк без зала (скрыт из календаря/форм).
+  let archive: ResourceRow | null = resources.find((r) => r.nameRu === ARCHIVE_RESOURCE) ?? null;
+  if (!archive) {
+    archive = await prisma.resource.create({
       data: {
         kind: 'COMPLEX', nameRu: ARCHIVE_RESOURCE, nameKk: ARCHIVE_RESOURCE,
         capacity: 0, isActive: false, sortOrder: 999, hourlyPrice: 0,
       },
+      select: {id: true, nameRu: true},
     });
-    resourceByName.set(ARCHIVE_RESOURCE, archive.id);
     console.log(`→ создан служебный ресурс «${ARCHIVE_RESOURCE}»`);
-  }
-  const required = Array.from(new Set(Object.values(VIP_TO_RESOURCE).concat('Банкетный')));
-  const missing = required.filter((n) => !resourceByName.has(n));
-  if (missing.length) {
-    console.error(`В БД нет ресурсов: ${missing.join(', ')} — поправь VIP_TO_RESOURCE в скрипте.`);
-    process.exit(1);
   }
 
   // Кэши клиентов/сотрудников по имени (идемпотентность повторных запусков).
@@ -319,7 +331,7 @@ async function main() {
     }
     await prisma.booking.create({
       data: {
-        resourceId: resourceByName.get(mapResourceName(e.vipRaw) ?? ARCHIVE_RESOURCE)!,
+        resourceId: (mapResource(e.vipRaw) ?? archive).id,
         clientId: cid,
         startAt,
         endAt: startAt,
