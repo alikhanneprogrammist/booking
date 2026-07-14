@@ -16,7 +16,10 @@ export function normalizePhone(input: string): string {
 export function formatPhoneDraft(raw: string): string {
   let d = raw.replace(/\D/g, '');
   if (d.startsWith('8')) d = '7' + d.slice(1);
-  if (d.length === 10) d = '7' + d; // вставили номер без кода страны
+  // Код страны дорисовываем только «голой» вставке (10 цифр БЕЗ «+» в начале).
+  // При редактировании поле всегда начинается с «+», и это правило не должно
+  // срабатывать — иначе удаление цифры из полного номера возвращало «7» обратно.
+  if (d.length === 10 && !raw.trim().startsWith('+')) d = '7' + d;
   if (!d.startsWith('7')) d = '7' + d;
   return '+' + d.slice(0, 11);
 }
