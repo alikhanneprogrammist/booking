@@ -1,5 +1,8 @@
 import {describe, expect, it} from 'vitest';
-import {kpis, byResource, byEnum, topClients, addonStats} from '@/lib/analytics';
+import {
+  kpis, byResource, byEnum, topClients, addonStats,
+  prepaymentTotal, byPayment, discountsTotal, byDay, toMonthly, byWeekday,
+} from '@/lib/analytics';
 import type {MockBooking} from '@/lib/types';
 
 let seq = 0;
@@ -76,5 +79,75 @@ describe('addonStats', () => {
     const r = addonStats(rows);
     expect(r[0]).toMatchObject({addonId: 'y', qty: 1, revenue: 99_000});
     expect(r[1]).toMatchObject({addonId: 'x', qty: 3, revenue: 40_000});
+  });
+});
+
+describe('prepaymentTotal / byPayment', () => {
+  it('сумма предоплат и группировка по способу оплаты (revenue = предоплата, не total)', () => {
+    const rows = [
+      mk({prepayment: 50_000, paymentMethod: 'KASPI', total: 999_999}),
+      mk({prepayment: 30_000, paymentMethod: 'KASPI'}),
+      mk({prepayment: 20_000, paymentMethod: 'CASH'}),
+      mk({prepayment: 10_000}), // без способа → UNKNOWN
+    ];
+    expect(prepaymentTotal(rows)).toBe(110_000);
+    const r = byPayment(rows);
+    expect(r[0]).toMatchObject({key: 'KASPI', count: 2, revenue: 80_000});
+    expect(r[1]).toMatchObject({key: 'CASH', count: 1, revenue: 20_000});
+    expect(r[2]).toMatchObject({key: 'UNKNOWN', count: 1, revenue: 10_000});
+  });
+});
+
+describe('discountsTotal', () => {
+  it('NONE → 0, AMOUNT → как есть, PERCENT восстанавливается от total со скидкой', () => {
+    expect(discountsTotal([mk({})])).toBe(0);
+    expect(discountsTotal([mk({discountType: 'AMOUNT', discountValue: 20_000})])).toBe(20_000);
+    // subtotal 140 000, скидка 10% = 14 000 → total 126 000; восстановление: 126000·10/90 = 14000
+    expect(discountsTotal([mk({discountType: 'PERCENT', discountValue: 10, total: 126_000})])).toBe(14_000);
+    // PERCENT=100 не восстановить (total 0) — пропускается
+    expect(discountsTotal([mk({discountType: 'PERCENT', discountValue: 100, total: 0})])).toBe(0);
+  });
+});
+
+describe('byDay', () => {
+  it('сплошная ось с нулями, дни считаются в Алматы', () => {
+    // 2026-07-01T20:00Z = 2026-07-02 01:00 Алматы (+05) → относится ко 2 июля
+    const rows = [
+      mk({startAt: new Date('2026-07-01T10:00:00Z'), total: 100}),
+      mk({startAt: new Date('2026-07-01T20:00:00Z'), total: 50}),
+    ];
+    const days = byDay(rows, '2026-07-01', '2026-07-03');
+    expect(days.map((d) => d.day)).toEqual(['2026-07-01', '2026-07-02', '2026-07-03']);
+    expect(days[0]).toMatchObject({count: 1, revenue: 100});
+    expect(days[1]).toMatchObject({count: 1, revenue: 50});
+    expect(days[2]).toMatchObject({count: 0, revenue: 0});
+  });
+
+  it('toMonthly сворачивает дни в месяцы', () => {
+    const days = byDay(
+      [mk({startAt: new Date('2026-06-30T10:00:00Z'), total: 10}), mk({startAt: new Date('2026-07-01T10:00:00Z'), total: 20})],
+      '2026-06-30',
+      '2026-07-01',
+    );
+    const months = toMonthly(days);
+    expect(months).toEqual([
+      {day: '2026-06', count: 1, revenue: 10},
+      {day: '2026-07', count: 1, revenue: 20},
+    ]);
+  });
+});
+
+describe('byWeekday', () => {
+  it('всегда 7 строк в порядке пн…вс', () => {
+    // 2026-07-13 — понедельник (Алматы)
+    const rows = [
+      mk({startAt: new Date('2026-07-13T10:00:00Z'), total: 100}),
+      mk({startAt: new Date('2026-07-17T10:00:00Z'), total: 40}), // пятница
+    ];
+    const r = byWeekday(rows);
+    expect(r).toHaveLength(7);
+    expect(r.map((x) => x.key)).toEqual(['1', '2', '3', '4', '5', '6', '0']);
+    expect(r[0]).toMatchObject({key: '1', count: 1, revenue: 100});
+    expect(r[4]).toMatchObject({key: '5', count: 1, revenue: 40});
   });
 });

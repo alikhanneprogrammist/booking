@@ -1,6 +1,6 @@
 import {setRequestLocale} from 'next-intl/server';
 import AnalyticsView, {type Preset} from '@/components/analytics/AnalyticsView';
-import {getBookingsStartingBetween, getResources, getClients, getAddons} from '@/lib/queries';
+import {getBookingsStartingBetween, getBookingsPrepaidBetween, getResources, getClients, getAddons} from '@/lib/queries';
 import {toAlmaty, fromAlmaty} from '@/lib/time';
 import {almatyDayStart, addDays, fromLocalInput, toLocalInput} from '@/lib/calendar';
 
@@ -45,12 +45,17 @@ export default async function AnalyticsPage({
     from = almatyDayStart(addDays(now, -(days - 1)));
   }
 
-  const [bookings, resources, clients, addons] = await Promise.all([
+  const [bookingsRaw, prepaid, resources, clients, addons] = await Promise.all([
     getBookingsStartingBetween(from, to),
+    getBookingsPrepaidBetween(from, to), // деньги по дате получения (вкл. импортированную историю)
     getResources(),
     getClients(),
     getAddons(),
   ]);
+
+  // Импортированные из эксель-журнала записи (нулевая длительность [X, X)) — не брони,
+  // а строки денежной истории: в подсчёте броней/гостей/чека они бы искажали цифры.
+  const bookings = bookingsRaw.filter((b) => b.endAt.getTime() > b.startAt.getTime());
 
   // Активный диапазон для полей выбора периода (конец — включительно).
   const fmt = (d: Date) => toLocalInput(d).slice(0, 10);
@@ -59,6 +64,7 @@ export default async function AnalyticsPage({
     <div className="h-screen overflow-auto">
       <AnalyticsView
         bookings={bookings}
+        prepaid={prepaid}
         resources={resources}
         clients={clients}
         addons={addons}

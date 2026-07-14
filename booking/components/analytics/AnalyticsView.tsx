@@ -4,15 +4,20 @@ import {useMemo, useState} from 'react';
 import {useLocale, useTranslations} from 'next-intl';
 import {Link, useRouter} from '@/i18n/navigation';
 import type {MockBooking, MockResource, MockClient, MockAddon} from '@/lib/types';
-import {kpis, byResource, byEnum, topClients, addonStats, type CountRevenue} from '@/lib/analytics';
+import {
+  kpis, byResource, byEnum, topClients, addonStats,
+  prepaymentTotal, byPayment, discountsTotal, byDay, toMonthly, byWeekday,
+  type CountRevenue,
+} from '@/lib/analytics';
 import {sectionHead} from '@/lib/ui';
 
 export type Preset = 'today' | 'week' | 'month' | '30d' | 'custom';
 
 export default function AnalyticsView({
-  bookings, resources, clients, addons, preset, rangeFrom, rangeTo,
+  bookings, prepaid, resources, clients, addons, preset, rangeFrom, rangeTo,
 }: {
-  bookings: MockBooking[]; // уже отфильтрованы по периоду на сервере
+  bookings: MockBooking[]; // уже отфильтрованы по периоду на сервере (без импортных нулевой длительности)
+  prepaid: MockBooking[]; // предоплаты периода по дате получения денег (вкл. импортированную историю)
   resources: MockResource[];
   clients: MockClient[];
   addons: MockAddon[];
@@ -24,6 +29,7 @@ export default function AnalyticsView({
   const ts = useTranslations('status');
   const tsrc = useTranslations('source');
   const tt = useTranslations('tariff');
+  const tpm = useTranslations('payment');
   const locale = useLocale();
   const router = useRouter();
 
@@ -63,6 +69,21 @@ export default function AnalyticsView({
   const tariffRows = useMemo(() => byEnum(active, 'tariff'), [active]);
   const top = useMemo(() => topClients(active, 5), [active]);
   const addonRows = useMemo(() => addonStats(active), [active]);
+  const paymentRows = useMemo(() => byPayment(prepaid), [prepaid]);
+  const weekdayRows = useMemo(() => byWeekday(active), [active]);
+  // Динамика: по дням; длинные периоды (>92 дней) сворачиваем помесячно.
+  const series = useMemo(() => {
+    const days = byDay(active, rangeFrom, rangeTo);
+    return days.length > 92 ? toMonthly(days) : days;
+  }, [active, rangeFrom, rangeTo]);
+  const maxSeries = Math.max(1, ...series.map((d) => d.revenue));
+
+  // Метка дня недели по ключу getDay() ('0'=вс): 2026-07-12 — воскресенье.
+  const weekdayLabel = (k: string) =>
+    new Date(Date.UTC(2026, 6, 12 + Number(k))).toLocaleDateString(
+      locale === 'kk' ? 'kk-KZ' : 'ru-RU',
+      {weekday: 'long', timeZone: 'UTC'},
+    );
 
   const presetBtn = (p: Preset, label: string) => (
     <button
@@ -166,12 +187,14 @@ export default function AnalyticsView({
       </div>
 
       {/* KPI */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {[
           {label: t('kpi.bookings'), value: k.count.toLocaleString(locale)},
           {label: t('kpi.revenue'), value: money(k.revenue)},
           {label: t('kpi.avgCheck'), value: money(k.avgCheck)},
           {label: t('kpi.guests'), value: k.guests.toLocaleString(locale)},
+          {label: t('kpi.prepayments'), value: money(prepaymentTotal(prepaid))},
+          {label: t('kpi.discounts'), value: money(discountsTotal(active))},
         ].map((c) => (
           <div key={c.label} className="rounded-lg border border-border bg-card p-3">
             <div className="text-xs text-muted">{c.label}</div>
@@ -179,6 +202,29 @@ export default function AnalyticsView({
           </div>
         ))}
       </div>
+
+      {/* Динамика по дням/месяцам */}
+      {series.length > 1 && (
+        <section className="mt-6">
+          <h2 className={headCls}>{t('dynamics')}</h2>
+          <div className="rounded-lg border border-border p-3">
+            <div className="flex h-28 items-end gap-px">
+              {series.map((d) => (
+                <div
+                  key={d.day}
+                  title={`${d.day}: ${money(d.revenue)} · ${d.count}`}
+                  className="flex-1 rounded-t bg-primary/60 transition-colors hover:bg-primary"
+                  style={{height: `${Math.max(Math.round((d.revenue / maxSeries) * 100), 2)}%`}}
+                />
+              ))}
+            </div>
+            <div className="mt-1 flex justify-between text-[10px] tabular-nums text-muted">
+              <span>{series[0].day}</span>
+              <span>{series[series.length - 1].day}</span>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* По VIP-объектам */}
       <section className="mt-6">
@@ -208,6 +254,15 @@ export default function AnalyticsView({
         {breakdown(t('byStatus'), statusRows, (v) => ts(v), ['CANCELLED', 'NO_SHOW'])}
         {breakdown(t('bySource'), sourceRows, (v) => tsrc(v))}
         {breakdown(t('byTariff'), tariffRows, (v) => tt(v))}
+      </section>
+
+      {/* Деньги: способы оплаты предоплат + дни недели */}
+      <section className="mt-6 grid gap-4 sm:grid-cols-2">
+        <div>
+          {breakdown(t('byPayment'), paymentRows, (v) => (v === 'UNKNOWN' ? '—' : tpm(v)))}
+          <p className="mt-1 text-[11px] text-muted">{t('paymentNote')}</p>
+        </div>
+        {breakdown(t('byWeekday'), weekdayRows, weekdayLabel)}
       </section>
 
       {/* Топ-клиенты */}
