@@ -208,6 +208,26 @@ model Booking {
   @@index([prepaidAt])
 }
 
+// ───────────────────────── PrepaymentArchive — архив предоплат ─────────
+// Исторический журнал предоплат, разово импортированный из эксель-файла
+// бухгалтерии (scripts/import-prepayments.ts). Чистый текст без связей с
+// Client/User/Resource — видим ТОЛЬКО во вкладке «Предоплаты», в аналитику,
+// клиентов и календарь не попадает. Новые предоплаты — только вручную (Booking).
+
+model PrepaymentArchive {
+  id            String         @id @default(cuid())
+  amount        Int
+  paymentMethod PaymentMethod? // Каспи/Нал/Банк; null — не распознано
+  guest         String // имя гостя из экселя, как есть
+  resourceLabel String // «VIP №» из экселя, как есть («2 вип», «Б/з»…)
+  paidAt        DateTime       @db.Timestamptz(6) // дата оплаты
+  visitAt       DateTime       @db.Timestamptz(6) // дата посещения
+  note          String?
+  manager       String? // ответственный, текстом
+
+  @@index([paidAt])
+}
+
 // ───────────────────────── Settings — настройки заведения ──────────────
 // Одна строка (singleton, id = "singleton"): общие данные заведения и
 // редактируемые тексты публичной страницы заявок /book. Меняется в админке

@@ -59,6 +59,20 @@ export interface MockUser {
   isActive: boolean;
 }
 
+// Строка архива предоплат (разовый импорт из экселя бухгалтерии) — чистый текст,
+// без связей с клиентами/сотрудниками/объектами. Видна только в журнале «Предоплаты».
+export interface ArchivePrepayment {
+  id: string;
+  amount: number;
+  paymentMethod?: PaymentMethod;
+  guest: string;
+  resourceLabel: string;
+  paidAt: Date;
+  visitAt: Date;
+  note?: string;
+  manager?: string;
+}
+
 export interface MockBooking {
   id: string;
   resourceId: string;

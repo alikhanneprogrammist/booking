@@ -1,42 +1,30 @@
-// Разовый импорт исторических предоплат из эксель-журнала бухгалтерии (ПРЕДОПЛАТЫ.xlsx).
-// Строки превращаются в брони нулевой длительности [X, X): они видны на вкладке
-// «Предоплаты» (по prepaidAt), но не попадают в календарь и не конфликтуют
-// с exclusion-констрейнтом booking_no_overlap (пустой интервал ни с чем не пересекается).
+// Разовый импорт исторических предоплат из эксель-журнала бухгалтерии (ПРЕДОПЛАТЫ.xlsx)
+// в ОТДЕЛЬНУЮ таблицу PrepaymentArchive: чистый текст без связей с Client/User/Resource.
+// Архив виден только во вкладке «Предоплаты»; в аналитику, список клиентов и календарь
+// не попадает. Новые предоплаты вносятся только вручную — через диалог брони.
 //
-// Запуск (из booking/, DATABASE_URL из .env):
+// Запуск локально (из booking/, DATABASE_URL из .env):
 //   npx tsx scripts/import-prepayments.ts "../ПРЕДОПЛАТЫ.xlsx" --dry-run   # проверка без записи
 //   npx tsx scripts/import-prepayments.ts "../ПРЕДОПЛАТЫ.xlsx"             # импорт
 //
-// Идемпотентно: уже импортированные строки (тот же клиент+сумма+даты) пропускаются.
+// На проде — внутри контейнера (эксель лежит уровнем выше booking/):
+//   docker compose run --rm -v "$PWD/../ПРЕДОПЛАТЫ.xlsx:/data/prepayments.xlsx:ro" \
+//     app npx tsx scripts/import-prepayments.ts /data/prepayments.xlsx --dry-run
+//
+// Идемпотентно: уже импортированные строки (тот же гость+сумма+даты) пропускаются.
 
 import {PrismaClient, PaymentMethod} from '@prisma/client';
 import * as XLSX from 'xlsx';
-import bcrypt from 'bcryptjs';
-import {randomBytes} from 'node:crypto';
 import {fromZonedTime} from 'date-fns-tz';
 import {TIMEZONE} from '../lib/time';
 
 const prisma = new PrismaClient();
-
-// ─────────────────────────── Маппинг (правится здесь) ───────────────────────
-
-// Маппинг «VIP №» → ресурс строится ДИНАМИЧЕСКИ по названиям из БД:
-// цифры перед «VIP» в nameRu покрывают номера залов («2 VIP» → 2; «2/5 VIP» → 2 и 5;
-// «7 VIP Банкетный зал» → 7), «Б/з»/«банкет» уходит на ресурс со словом «банкет».
-// Всё, что не смэпилось (VIP 0, пусто), — на скрытый служебный ресурс ARCHIVE_RESOURCE.
-const BANQUET_RE = /б\s*[/.]\s*з|банкет/i; // «Б/з», «Б.З», «Банкетный зал»
-const ARCHIVE_RESOURCE = 'Архив (импорт)';
 
 const PAYMENT_MAP: Array<[RegExp, PaymentMethod]> = [
   [/kaspi|пэй|пей/i, 'KASPI'],
   [/нал/i, 'CASH'],
   [/банк|перевод/i, 'BANK'],
 ];
-
-// Синтетические телефоны (обязательны и уникальны по схеме): диапазоны,
-// невозможные у реальных номеров.
-const CLIENT_PHONE_PREFIX = '+7000';
-const USER_PHONE_PREFIX = '+79990';
 
 // ─────────────────────────── Парсинг ────────────────────────────────────────
 
@@ -46,7 +34,7 @@ type Entry = {
   amount: number;
   typeRaw: string;
   guest: string;
-  vipRaw: string; // текст, из которого определяем зал (VIP № или «Списание»)
+  vipRaw: string; // текст «VIP №»/«Списание» из экселя — сохраняем как есть
   paid: Wall;
   visit: Wall;
   note: string;
@@ -165,29 +153,9 @@ function parseOldSheet(matrix: Matrix, sheet: string, skipped: string[]): Entry[
   return out;
 }
 
-// ─────────────────────────── Маппинг значений ───────────────────────────────
-
 function mapPayment(typeRaw: string): PaymentMethod | null {
   for (const [re, method] of PAYMENT_MAP) if (re.test(typeRaw)) return method;
   return null;
-}
-
-type ResourceRow = {id: string; nameRu: string};
-
-// Строит функцию «текст зала из экселя → ресурс из БД (или null → архив)».
-function buildResourceMapper(resources: ResourceRow[]) {
-  const byDigit = new Map<string, ResourceRow>();
-  for (const r of resources) {
-    const prefix = r.nameRu.match(/^[\d/\s]+(?=vip)/i)?.[0] ?? '';
-    for (const d of prefix.match(/\d/g) ?? []) byDigit.set(d, r);
-  }
-  const banquet = resources.find((r) => /банкет/i.test(r.nameRu)) ?? null;
-  return (vipRaw: string): ResourceRow | null => {
-    if (BANQUET_RE.test(vipRaw) && banquet) return banquet;
-    const digit =
-      vipRaw.match(/(\d)\s*вип/i) ?? vipRaw.match(/вип\s*(\d)/i) ?? vipRaw.match(/(\d)/);
-    return digit ? (byDigit.get(digit[1]) ?? null) : null;
-  };
 }
 
 // ─────────────────────────── Основной прогон ────────────────────────────────
@@ -220,36 +188,21 @@ async function main() {
     return true;
   });
 
-  // Ресурсы читаем и в dry-run — чтобы показать реальный маппинг залов на ЭТУ БД.
-  const resources: ResourceRow[] = await prisma.resource.findMany({select: {id: true, nameRu: true}});
-  const mapResource = buildResourceMapper(resources);
-
   // Сводка для сверки с экселем.
   const byMonth = new Map<string, {sum: number; n: number}>();
-  const byVip = new Map<string, {n: number; target: string}>();
-  let toArchive = 0;
   for (const e of unique) {
     const m = `${e.paid.y}-${String(e.paid.m).padStart(2, '0')}`;
     const agg = byMonth.get(m) ?? {sum: 0, n: 0};
     agg.sum += e.amount;
     agg.n += 1;
     byMonth.set(m, agg);
-    const target = mapResource(e.vipRaw);
-    if (!target) toArchive += 1;
-    const label = e.vipRaw || '(пусто)';
-    const v = byVip.get(label) ?? {n: 0, target: target ? target.nameRu : `«${ARCHIVE_RESOURCE}»`};
-    v.n += 1;
-    byVip.set(label, v);
   }
+  const total = unique.reduce((s, e) => s + e.amount, 0);
   console.log(`Распознано строк: ${entries.length}, после дедупликации: ${unique.length}, пропущено: ${skipped.length}`);
-  console.log(`Без зала (уйдут на «${ARCHIVE_RESOURCE}»): ${toArchive}`);
+  console.log(`Общая сумма: ${total.toLocaleString('ru-RU')} ₸`);
   console.log('Суммы по месяцам (дата оплаты):');
   for (const [m, {sum, n}] of Array.from(byMonth.entries()).sort()) {
     console.log(`  ${m}: ${sum.toLocaleString('ru-RU')} ₸ (${n} шт.)`);
-  }
-  console.log('Маппинг залов (значение из экселя → объект в БД):');
-  for (const [label, {n, target}] of Array.from(byVip.entries()).sort((a, b) => b[1].n - a[1].n)) {
-    console.log(`  ${label.slice(0, 40)} → ${target} (${n} шт.)`);
   }
   if (skipped.length) {
     console.log('Пропущенные строки (без суммы/даты):');
@@ -261,96 +214,38 @@ async function main() {
     return;
   }
 
-  // Служебный архивный ресурс для строк без зала (скрыт из календаря/форм).
-  let archive: ResourceRow | null = resources.find((r) => r.nameRu === ARCHIVE_RESOURCE) ?? null;
-  if (!archive) {
-    archive = await prisma.resource.create({
-      data: {
-        kind: 'COMPLEX', nameRu: ARCHIVE_RESOURCE, nameKk: ARCHIVE_RESOURCE,
-        capacity: 0, isActive: false, sortOrder: 999, hourlyPrice: 0,
-      },
-      select: {id: true, nameRu: true},
-    });
-    console.log(`→ создан служебный ресурс «${ARCHIVE_RESOURCE}»`);
-  }
-
-  // Кэши клиентов/сотрудников по имени (идемпотентность повторных запусков).
-  const importedClients = await prisma.client.findMany({where: {phone: {startsWith: CLIENT_PHONE_PREFIX}}});
-  const clientByName = new Map(importedClients.map((c) => [c.name.toLowerCase(), c.id]));
-  let clientSeq = importedClients.length;
-  async function clientId(name: string): Promise<string> {
-    const key = name.toLowerCase();
-    const hit = clientByName.get(key);
-    if (hit) return hit;
-    let phone: string;
-    do phone = `${CLIENT_PHONE_PREFIX}${String(++clientSeq).padStart(6, '0')}`;
-    while (await prisma.client.findUnique({where: {phone}}));
-    const c = await prisma.client.create({data: {name, phone, tags: ['импорт']}});
-    clientByName.set(key, c.id);
-    return c.id;
-  }
-
-  const allUsers = await prisma.user.findMany();
-  const userByName = new Map(allUsers.map((u) => [u.name.toLowerCase(), u.id]));
-  let userSeq = allUsers.filter((u) => u.phone.startsWith(USER_PHONE_PREFIX)).length;
-  async function userId(name: string): Promise<string> {
-    const key = (name || 'Импорт (эксель)').toLowerCase();
-    const hit = userByName.get(key);
-    if (hit) return hit;
-    let phone: string;
-    do phone = `${USER_PHONE_PREFIX}${String(++userSeq).padStart(6, '0')}`;
-    while (await prisma.user.findUnique({where: {phone}}));
-    const u = await prisma.user.create({
-      data: {
-        name: name || 'Импорт (эксель)', phone, role: 'MANAGER', isActive: false,
-        passwordHash: await bcrypt.hash(randomBytes(24).toString('hex'), 10),
-      },
-    });
-    userByName.set(key, u.id);
-    return u.id;
-  }
-
   let created = 0;
   let existed = 0;
   for (const e of unique) {
-    const cid = await clientId(e.guest);
-    const uid = await userId(e.manager);
-    const startAt = almaty(e.visit, 0); // [X, X) — пустой интервал, см. шапку файла
-    const prepaidAt = almaty(e.paid, 12);
-    if (Number.isNaN(startAt.getTime()) || Number.isNaN(prepaidAt.getTime())) {
+    const paidAt = almaty(e.paid, 12);
+    const visitAt = almaty(e.visit, 0);
+    if (Number.isNaN(paidAt.getTime()) || Number.isNaN(visitAt.getTime())) {
       console.log(`  ! кривая дата, пропуск: ${e.sheet} / ${e.guest} / ${wallKey(e.paid)}→${wallKey(e.visit)}`);
       continue;
     }
-    const dup = await prisma.booking.findFirst({
-      where: {clientId: cid, startAt, prepaidAt, prepayment: e.amount},
+    const dup = await prisma.prepaymentArchive.findFirst({
+      where: {guest: e.guest, amount: e.amount, paidAt, visitAt},
       select: {id: true},
     });
     if (dup) {
       existed += 1;
       continue;
     }
-    await prisma.booking.create({
+    await prisma.prepaymentArchive.create({
       data: {
-        resourceId: (mapResource(e.vipRaw) ?? archive).id,
-        clientId: cid,
-        startAt,
-        endAt: startAt,
-        status: 'COMPLETED',
-        source: 'ADMIN',
-        tariff: 'CUSTOM',
-        guests: 1,
-        total: 0,
-        prepayment: e.amount,
-        prepaidAt,
+        amount: e.amount,
         paymentMethod: mapPayment(e.typeRaw),
-        comment: e.note || null,
-        createdById: uid,
+        guest: e.guest,
+        resourceLabel: e.vipRaw,
+        paidAt,
+        visitAt,
+        note: e.note || null,
+        manager: e.manager || null,
       },
     });
     created += 1;
   }
-  console.log(`\nГотово: создано броней ${created}, уже были (пропущено) ${existed}.`);
-  console.log(`Клиентов с тегом «импорт»: ${clientByName.size}; сотрудников-ответственных: ${userByName.size}.`);
+  console.log(`\nГотово: создано записей архива ${created}, уже были (пропущено) ${existed}.`);
 }
 
 main()

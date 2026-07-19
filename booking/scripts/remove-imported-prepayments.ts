@@ -3,7 +3,8 @@
 //   - брони клиентов с телефонами +7000…  (клиенты создавались только импортом);
 //   - самих этих клиентов (тег «импорт»);
 //   - неактивных сотрудников-«ответственных» с телефонами +79990…;
-//   - служебный ресурс «Архив (импорт)», если остался пустым.
+//   - служебный ресурс «Архив (импорт)», если остался пустым;
+//   - ВСЕ строки таблицы-архива PrepaymentArchive (новый формат импорта).
 // Реальные данные не трогает: настоящие телефоны с +7000/+79990 начинаться не могут,
 // а сотрудники, совпавшие по имени с реальными пользователями, не удаляются.
 //
@@ -51,6 +52,8 @@ async function main() {
     select: {id: true, nameRu: true},
   });
 
+  const archiveRows = await prisma.prepaymentArchive.count();
+
   const totalPrepay = bookings.reduce((s, b) => s + Number(b.prepayment ?? 0), 0);
   const nonEmpty = bookings.filter((b) => b.startAt.getTime() !== b.endAt.getTime());
   console.log(`Броней импорта (по клиентам ${CLIENT_PHONE_PREFIX}…): ${bookings.length}`);
@@ -64,6 +67,7 @@ async function main() {
   console.log(`Клиентов импорта: ${clients.length}`);
   console.log(`Сотрудников импорта (${USER_PHONE_PREFIX}…, неактивные): ${users.length}`);
   console.log(`Ресурс «${ARCHIVE_RESOURCE}»: ${archive ? 'есть' : 'нет'}`);
+  console.log(`Строк в таблице-архиве PrepaymentArchive: ${archiveRows}`);
 
   if (dryRun) {
     console.log('\n--dry-run: ничего не удалено.');
@@ -79,6 +83,7 @@ async function main() {
 
   const delBookings = await prisma.booking.deleteMany({where: {clientId: {in: clientIds}}});
   const delClients = await prisma.client.deleteMany({where: {id: {in: clientIds}}});
+  const delArchiveRows = await prisma.prepaymentArchive.deleteMany({});
 
   // Сотрудников удаляем только если на них больше не ссылаются другие брони.
   let delUsers = 0;
@@ -105,7 +110,8 @@ async function main() {
 
   console.log(
     `\nГотово: броней удалено ${delBookings.count}, клиентов ${delClients.count}, ` +
-      `сотрудников ${delUsers}; ресурс «${ARCHIVE_RESOURCE}» — ${archiveMsg}.`
+      `сотрудников ${delUsers}, строк архива ${delArchiveRows.count}; ` +
+      `ресурс «${ARCHIVE_RESOURCE}» — ${archiveMsg}.`
   );
 }
 
