@@ -38,7 +38,7 @@ export default function LoginForm() {
           required
           autoComplete="username"
           value={phone}
-          onChange={(e) => setPhone(formatPhoneDraft(e.target.value))}
+          onChange={(e) => setPhone(formatPhoneDraft(e.target.value, phone))}
           placeholder="+7 700 000 00 00"
           className="rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/40"
         />

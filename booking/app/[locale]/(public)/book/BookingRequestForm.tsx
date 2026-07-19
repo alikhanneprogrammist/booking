@@ -182,7 +182,7 @@ export default function BookingRequestForm({resources}: {resources: ResourceOpti
         <span className="text-xs font-medium text-muted">{t('phone')}</span>
         <input
           value={phone}
-          onChange={(e) => setPhone(formatPhoneDraft(e.target.value))}
+          onChange={(e) => setPhone(formatPhoneDraft(e.target.value, phone))}
           type="tel"
           required
           placeholder="+7 700 000 00 00"

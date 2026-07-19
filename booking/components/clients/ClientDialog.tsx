@@ -62,7 +62,7 @@ export default function ClientDialog({
           </label>
           <label className={label}>
             {t('phone')}
-            <input className={field} type="tel" value={phone} onChange={(e) => setPhone(formatPhoneDraft(e.target.value))} placeholder="+7 700 000 00 00" />
+            <input className={field} type="tel" value={phone} onChange={(e) => setPhone(formatPhoneDraft(e.target.value, phone))} placeholder="+7 700 000 00 00" />
           </label>
           <label className={label}>
             {t('note')}

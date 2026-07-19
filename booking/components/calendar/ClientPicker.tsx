@@ -81,7 +81,7 @@ export default function ClientPicker({
       {newOpen ? (
         <div className="flex flex-col gap-1.5 rounded-md border border-border bg-subtle p-2">
           <input className={dialogField} placeholder={tb('newClientName')} value={nName} onChange={(e) => setNName(e.target.value)} />
-          <input className={dialogField} type="tel" placeholder={tb('newClientPhone')} value={nPhone} onChange={(e) => setNPhone(formatPhoneDraft(e.target.value))} />
+          <input className={dialogField} type="tel" placeholder={tb('newClientPhone')} value={nPhone} onChange={(e) => setNPhone(formatPhoneDraft(e.target.value, nPhone))} />
           {nErr && <span role="alert" className="text-[11px] text-red-600">{nErr}</span>}
           <button
             type="button"

@@ -78,7 +78,7 @@ export default function UserDialog({
         <>
         <div className="flex flex-col gap-3">
           <label className={label}>{t('name')}<input className={field} value={name} onChange={(e) => setName(e.target.value)} autoFocus /></label>
-          <label className={label}>{t('phone')}<input className={field} type="tel" value={phone} onChange={(e) => setPhone(formatPhoneDraft(e.target.value))} placeholder="+7 700 000 00 00" /></label>
+          <label className={label}>{t('phone')}<input className={field} type="tel" value={phone} onChange={(e) => setPhone(formatPhoneDraft(e.target.value, phone))} placeholder="+7 700 000 00 00" /></label>
           <label className={label}>{t('email')}<input className={field} value={email} onChange={(e) => setEmail(e.target.value)} /></label>
           <label className={label}>{t('role')}
             <select className={field} value={role} onChange={(e) => setRole(e.target.value as 'ADMIN' | 'MANAGER')}>
