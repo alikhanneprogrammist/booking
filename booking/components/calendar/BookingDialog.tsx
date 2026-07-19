@@ -1,8 +1,7 @@
 'use client';
 
-import {useEffect, useMemo, useRef, useState} from 'react';
+import {useEffect, useState} from 'react';
 import {useTranslations} from 'next-intl';
-import {computePrice} from '@/lib/pricing';
 import {durationHours, intervalsOverlap} from '@/lib/time';
 import {toLocalInput, fromLocalInput, fmtTime} from '@/lib/calendar';
 import {saveBooking, cancelBookingAction, getBookingHistory} from '@/lib/actions';
@@ -66,8 +65,6 @@ export default function BookingDialog({
   const discountType: DiscountType = init?.discountType ?? 'NONE';
   const discountValue = String(init?.discountValue ?? 0);
   const [total, setTotal] = useState(String(init?.total ?? 0));
-  // «Итого» правлено руками В ЭТОМ диалоге → авторасчёт выключен до кнопки «Авторасчёт».
-  const [totalTouched, setTotalTouched] = useState(false);
   const [deposit, setDeposit] = useState(String(init?.deposit ?? 0));
   const [prepayment, setPrepayment] = useState(String(init?.prepayment ?? 0));
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | ''>(init?.paymentMethod ?? '');
@@ -113,28 +110,11 @@ export default function BookingDialog({
           timeZone: 'Asia/Almaty', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
         }).format(endAt);
 
-  const price = useMemo(() => {
-    const lines = addons
-      .filter((a) => (qty[a.id] ?? 0) > 0)
-      .map((a) => ({price: a.price, qty: qty[a.id]}));
-    return computePrice(resource, tariff, startAt, endAt, lines, guests, {
-      type: discountType,
-      value: Number(discountValue) || 0,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resourceId, tariff, date, startTime, hours, JSON.stringify(qty), guests, discountType, discountValue]);
-
-  // В edit-режиме первый прогон пропускаем: показываем сохранённый итог (мог быть договорным).
-  // Но любое изменение цено-влияющих полей пересчитывает итог, пока его не правили руками, —
-  // иначе смена времени/скидки молча сохраняла бы устаревшую сумму.
-  const skipFirstPrice = useRef(mode === 'edit');
-  useEffect(() => {
-    if (skipFirstPrice.current) {
-      skipFirstPrice.current = false;
-      return;
-    }
-    if (!totalTouched && Number.isFinite(price.total)) setTotal(String(price.total));
-  }, [price.total, totalTouched]);
+  // Авторасчёт убран: суммы полностью ручные. Единственная живая подсказка —
+  // предупреждение о превышении вместимости объекта.
+  const capacityWarning = guests > resource.capacity
+    ? `Гостей (${guests}) больше вместимости объекта (${resource.capacity})`
+    : null;
 
   const name = (r: MockResource) => (locale === 'kk' ? r.nameKk : r.nameRu);
   const aName = (a: MockAddon) => (locale === 'kk' ? a.nameKk : a.nameRu);
@@ -334,15 +314,8 @@ export default function BookingDialog({
         {/* Суммы + авторасчёт (ТЗ §4.9 FR-PRICE-3) */}
         <div className="mt-3 grid grid-cols-3 gap-3">
           <label className={labelCls}>
-            <span className="flex items-center justify-between">
-              {tb('total')}
-              <button type="button" className="text-[10px] text-blue-600 hover:underline"
-                onClick={() => {setTotalTouched(false); setTotal(String(price.total));}}>
-                {tb('autocalc')}
-              </button>
-            </span>
-            <input className={fieldCls} value={total}
-              onChange={(e) => {setTotalTouched(true); setTotal(e.target.value);}} />
+            {tb('total')}
+            <input className={fieldCls} value={total} onChange={(e) => setTotal(e.target.value)} />
           </label>
           <label className={labelCls}>
             {tb('deposit')}
@@ -367,8 +340,8 @@ export default function BookingDialog({
           <textarea className={fieldCls} rows={2} value={comment} onChange={(e) => setComment(e.target.value)} />
         </label>
 
-        {price.warnings.length > 0 && (
-          <div className="mt-2 text-xs text-amber-600">{price.warnings.join('; ')}</div>
+        {capacityWarning && (
+          <div className="mt-2 text-xs text-amber-600">{capacityWarning}</div>
         )}
         {error && (
           <div role="alert" className="mt-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950/40">{error}</div>
