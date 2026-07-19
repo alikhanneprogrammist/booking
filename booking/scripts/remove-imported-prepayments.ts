@@ -10,6 +10,13 @@
 // Запуск (из booking/, DATABASE_URL из .env):
 //   npx tsx scripts/remove-imported-prepayments.ts --dry-run   # показать, без удаления
 //   npx tsx scripts/remove-imported-prepayments.ts             # удалить (с бэкапом в JSON)
+//
+// На проде — внутри контейнера, без пересборки образа (скрипт монтируется с хоста,
+// BACKUP_DIR — чтобы бэкап не пропал вместе с эфемерным контейнером):
+//   docker compose run --rm \
+//     -v "$PWD/scripts/remove-imported-prepayments.ts:/app/scripts/remove-imported-prepayments.ts:ro" \
+//     -v "$PWD:/backup" -e BACKUP_DIR=/backup \
+//     app npx tsx scripts/remove-imported-prepayments.ts --dry-run   # сначала так!
 
 import {PrismaClient} from '@prisma/client';
 import {writeFileSync} from 'node:fs';
@@ -63,7 +70,8 @@ async function main() {
     return;
   }
 
-  const backupPath = `${process.cwd()}/prepayments-import-backup-${new Date()
+  const backupDir = process.env.BACKUP_DIR || process.cwd();
+  const backupPath = `${backupDir}/prepayments-import-backup-${new Date()
     .toISOString()
     .replace(/[:.]/g, '-')}.json`;
   writeFileSync(backupPath, JSON.stringify({clients, bookings, users, archive}, null, 2));
