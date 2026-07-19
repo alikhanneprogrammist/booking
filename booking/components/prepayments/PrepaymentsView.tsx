@@ -4,7 +4,7 @@ import {useMemo, useState} from 'react';
 import {useLocale, useTranslations} from 'next-intl';
 import {Link, useRouter} from '@/i18n/navigation';
 import {toAlmaty} from '@/lib/time';
-import {removeArchivePrepayment} from '@/lib/actions';
+import {clearBookingPrepayment, removeArchivePrepayment} from '@/lib/actions';
 import AddPrepaymentDialog from './AddPrepaymentDialog';
 import type {
   ArchivePrepayment, BookingStatus, MockBooking, MockClient, MockResource, MockUser, PaymentMethod,
@@ -106,12 +106,13 @@ export default function PrepaymentsView({
   const [showAdd, setShowAdd] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // Удаление ошибочной строки журнала (только архив/ручной ввод, только ADMIN).
-  async function removeRow(id: string) {
-    if (!window.confirm(t('deleteConfirm'))) return;
-    setDeletingId(id);
+  // Удаление строки журнала (только ADMIN): архив/ручной ввод удаляется целиком,
+  // у строки-брони обнуляется предоплата (сама бронь остаётся в календаре).
+  async function removeRow(r: JournalRow) {
+    if (!window.confirm(r.isArchive ? t('deleteConfirm') : t('clearBookingConfirm'))) return;
+    setDeletingId(r.id);
     try {
-      await removeArchivePrepayment(id);
+      await (r.isArchive ? removeArchivePrepayment(r.id) : clearBookingPrepayment(r.id));
       router.refresh();
     } finally {
       setDeletingId(null);
@@ -213,11 +214,9 @@ export default function PrepaymentsView({
                     <td className="whitespace-nowrap px-3 py-2">{r.manager || '—'}</td>
                     {isAdmin && (
                       <td className="px-2 py-2 text-center">
-                        {r.isArchive && (
-                          <button onClick={() => removeRow(r.id)} disabled={deletingId === r.id}
-                            aria-label={t('deleteRow')} title={t('deleteRow')}
-                            className="text-muted hover:text-red-600 disabled:opacity-50">✕</button>
-                        )}
+                        <button onClick={() => removeRow(r)} disabled={deletingId === r.id}
+                          aria-label={t('deleteRow')} title={t('deleteRow')}
+                          className="text-muted hover:text-red-600 disabled:opacity-50">✕</button>
                       </td>
                     )}
                   </tr>

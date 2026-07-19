@@ -477,3 +477,27 @@ export async function removeArchivePrepayment(id: string) {
   refresh();
   return {ok: true as const};
 }
+
+/**
+ * Убрать предоплату из брони (строка журнала «Предоплаты» из брони) — только ADMIN.
+ * Бронь остаётся, обнуляются prepayment/prepaidAt (строка уходит и из аналитики);
+ * изменение пишется в журнал аудита брони.
+ */
+export async function clearBookingPrepayment(id: string) {
+  const user = await requireAdmin();
+  const b = await prisma.booking.findUnique({where: {id}, select: {prepayment: true}});
+  if (!b) return {ok: false as const, error: 'NOT_FOUND' as const};
+  await prisma.$transaction([
+    prisma.booking.update({where: {id}, data: {prepayment: 0, prepaidAt: null}}),
+    prisma.bookingAudit.create({
+      data: {
+        bookingId: id,
+        userId: user.id!,
+        action: 'UPDATE',
+        changes: [{field: 'prepayment', from: Number(b.prepayment), to: 0}],
+      },
+    }),
+  ]);
+  refresh();
+  return {ok: true as const};
+}
