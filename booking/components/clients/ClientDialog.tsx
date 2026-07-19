@@ -8,6 +8,17 @@ import {formatPhoneDraft} from '@/lib/phone';
 import type {MockClient} from '@/lib/types';
 import {dialogField, dialogLabel} from '@/lib/ui';
 
+// Предустановленные теги-сегменты клиентов (теги — данные, админка ru-only).
+const PRESET_TAGS = ['VIP', 'Сегмент A', 'Сегмент B', 'Сегмент C', 'Сегмент D', 'Суточные гости'];
+
+const tagList = (s: string) => s.split(',').map((x) => x.trim()).filter(Boolean);
+
+function toggleTag(s: string, tag: string): string {
+  const list = tagList(s);
+  const next = list.includes(tag) ? list.filter((x) => x !== tag) : [...list, tag];
+  return next.join(', ');
+}
+
 export default function ClientDialog({
   mode, client, onClose, onSaved,
 }: {
@@ -68,10 +79,26 @@ export default function ClientDialog({
             {t('note')}
             <textarea className={field} rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
           </label>
-          <label className={label}>
+          <div className={label}>
             {t('tags')}
-            <input className={field} value={tags} onChange={(e) => setTags(e.target.value)} placeholder="VIP, постоянный" />
-          </label>
+            {/* Предустановленные теги-сегменты: клик добавляет/убирает из списка */}
+            <div className="flex flex-wrap gap-1.5">
+              {PRESET_TAGS.map((tag) => {
+                const active = tagList(tags).includes(tag);
+                return (
+                  <button key={tag} type="button" onClick={() => setTags(toggleTag(tags, tag))}
+                    className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                      active
+                        ? 'bg-primary text-primary-foreground'
+                        : 'border border-border bg-subtle text-muted hover:text-foreground'
+                    }`}>
+                    {tag}
+                  </button>
+                );
+              })}
+            </div>
+            <input className={field} value={tags} onChange={(e) => setTags(e.target.value)} placeholder="свой тег через запятую" />
+          </div>
           <label className={label}>
             {t('dateOfBirth')}
             <input type="date" className={field} value={dob} onChange={(e) => setDob(e.target.value)} />
