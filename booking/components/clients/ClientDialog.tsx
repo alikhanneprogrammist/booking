@@ -7,17 +7,7 @@ import {toInputValue, parseInputDate} from '@/lib/birthdays';
 import {formatPhoneDraft} from '@/lib/phone';
 import type {MockClient} from '@/lib/types';
 import {dialogField, dialogLabel} from '@/lib/ui';
-
-// Предустановленные теги-сегменты клиентов (теги — данные, админка ru-only).
-const PRESET_TAGS = ['VIP', 'Сегмент A', 'Сегмент B', 'Сегмент C', 'Сегмент D', 'Суточные гости'];
-
-const tagList = (s: string) => s.split(',').map((x) => x.trim()).filter(Boolean);
-
-function toggleTag(s: string, tag: string): string {
-  const list = tagList(s);
-  const next = list.includes(tag) ? list.filter((x) => x !== tag) : [...list, tag];
-  return next.join(', ');
-}
+import TagsField from './TagsField';
 
 export default function ClientDialog({
   mode, client, onClose, onSaved,
@@ -81,28 +71,7 @@ export default function ClientDialog({
           </label>
           <div className={label}>
             {t('tags')}
-            {/* Выпадающий список предустановленных тегов-сегментов; выбранные — чипы с ✕ */}
-            <select className={field} value=""
-              onChange={(e) => e.target.value && setTags(toggleTag(tags, e.target.value))}>
-              <option value="">+ Добавить тег…</option>
-              {PRESET_TAGS.filter((tag) => !tagList(tags).includes(tag)).map((tag) => (
-                <option key={tag} value={tag}>{tag}</option>
-              ))}
-            </select>
-            {tagList(tags).length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {tagList(tags).map((tag) => (
-                  <span key={tag}
-                    className="inline-flex items-center gap-1 rounded-full bg-subtle px-2.5 py-1 text-xs font-medium">
-                    {tag}
-                    <button type="button" aria-label={`убрать ${tag}`}
-                      onClick={() => setTags(toggleTag(tags, tag))}
-                      className="text-muted hover:text-red-600">✕</button>
-                  </span>
-                ))}
-              </div>
-            )}
-            <input className={field} value={tags} onChange={(e) => setTags(e.target.value)} placeholder="свой тег через запятую" />
+            <TagsField value={tags} onChange={setTags} />
           </div>
           <label className={label}>
             {t('dateOfBirth')}
