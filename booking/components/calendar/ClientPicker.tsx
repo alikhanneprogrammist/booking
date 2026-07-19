@@ -1,12 +1,11 @@
 'use client';
 
-import {useEffect, useMemo, useRef, useState} from 'react';
+import {useMemo, useState} from 'react';
 import {useTranslations} from 'next-intl';
 import {useRouter} from '@/i18n/navigation';
 import {saveClient} from '@/lib/actions';
 import {formatPhoneDraft} from '@/lib/phone';
 import {dialogField, dialogLabel} from '@/lib/ui';
-import TagsField, {tagList} from '@/components/clients/TagsField';
 import type {MockClient} from '@/lib/types';
 
 /**
@@ -29,41 +28,11 @@ export default function ClientPicker({
   const [query, setQuery] = useState(initialName ?? '');
   const [open, setOpen] = useState(false);
 
-  // Инлайн-создание клиента
+  // Инлайн-создание клиента (только имя и телефон; теги — в поле «Теги клиента» брони)
   const [newOpen, setNewOpen] = useState(false);
   const [nName, setNName] = useState('');
   const [nPhone, setNPhone] = useState('+7');
-  const [nTags, setNTags] = useState('');
   const [nErr, setNErr] = useState<string | null>(null);
-
-  // Теги выбранного существующего клиента: черновик + немедленное сохранение.
-  const selected = clients.find((c) => c.id === value) ?? null;
-  const [tagsDraft, setTagsDraft] = useState('');
-  useEffect(() => {
-    setTagsDraft((selected?.tags ?? []).join(', '));
-  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Дебаунс: свободный ввод тегов печатается посимвольно — не дёргаем сервер на каждый символ.
-  const tagsSaveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  function updateSelectedTags(next: string) {
-    setTagsDraft(next);
-    if (!selected) return;
-    const c = selected;
-    clearTimeout(tagsSaveTimer.current);
-    tagsSaveTimer.current = setTimeout(async () => {
-      // saveClient перезаписывает ВСЕ поля — передаём клиента целиком, чтобы
-      // не затереть заметку и дату рождения.
-      await saveClient({
-        id: c.id,
-        name: c.name,
-        phone: c.phone,
-        note: c.note,
-        dateOfBirth: c.dateOfBirth,
-        tags: tagList(next),
-      });
-      router.refresh();
-    }, 600);
-  }
 
   // Подстрочный поиск: по имени и по цифрам телефона; показываем первые 8.
   const matches = useMemo(() => {
@@ -87,7 +56,7 @@ export default function ClientPicker({
 
   async function createClient() {
     setNErr(null);
-    const res = await saveClient({name: nName.trim(), phone: nPhone.trim(), tags: tagList(nTags)});
+    const res = await saveClient({name: nName.trim(), phone: nPhone.trim()});
     if (!res.ok) {
       setNErr(tc('duplicatePhone')); // единственная ожидаемая ошибка — занятый телефон
       return;
@@ -97,7 +66,6 @@ export default function ClientPicker({
     setNewOpen(false);
     setNName('');
     setNPhone('+7');
-    setNTags('');
     // Подтягиваем нового клиента в список (перечитываем серверные данные).
     router.refresh();
   }
@@ -114,7 +82,6 @@ export default function ClientPicker({
         <div className="flex flex-col gap-1.5 rounded-md border border-border bg-subtle p-2">
           <input className={dialogField} placeholder={tb('newClientName')} value={nName} onChange={(e) => setNName(e.target.value)} />
           <input className={dialogField} type="tel" placeholder={tb('newClientPhone')} value={nPhone} onChange={(e) => setNPhone(formatPhoneDraft(e.target.value, nPhone))} />
-          <TagsField value={nTags} onChange={setNTags} />
           {nErr && <span role="alert" className="text-[11px] text-red-600">{nErr}</span>}
           <button
             type="button"
@@ -160,12 +127,6 @@ export default function ClientPicker({
               ))}
             </div>
           )}
-        </div>
-      )}
-      {/* Теги выбранного клиента: видны сразу, правки сохраняются немедленно */}
-      {!newOpen && selected && (
-        <div className="flex flex-col gap-1.5 rounded-md border border-border bg-subtle p-2">
-          <TagsField value={tagsDraft} onChange={updateSelectedTags} />
         </div>
       )}
     </div>

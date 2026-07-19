@@ -12,6 +12,7 @@ import type {
   PaymentMethod,
 } from '@/lib/types';
 import ClientPicker from './ClientPicker';
+import TagsField from '@/components/clients/TagsField';
 import ResourceSummary from './ResourceSummary';
 
 export default function BookingDialog({
@@ -238,15 +239,10 @@ export default function BookingDialog({
               setTags((clients.find((c) => c.id === id)?.tags ?? []).join(', '));
             }}
           />
-          <label className={labelCls}>
+          <div className={labelCls}>
             {tb('clientTags')}
-            <input
-              className={fieldCls}
-              value={tags}
-              onChange={(e) => setTags(e.target.value)}
-              placeholder="VIP, постоянный"
-            />
-          </label>
+            <TagsField value={tags} onChange={setTags} />
+          </div>
           <label className={labelCls}>
             {tb('date')}
             <input type="date" className={fieldCls} value={date} onChange={(e) => setDate(e.target.value)} />
