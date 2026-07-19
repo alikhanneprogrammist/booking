@@ -81,22 +81,27 @@ export default function ClientDialog({
           </label>
           <div className={label}>
             {t('tags')}
-            {/* Предустановленные теги-сегменты: клик добавляет/убирает из списка */}
-            <div className="flex flex-wrap gap-1.5">
-              {PRESET_TAGS.map((tag) => {
-                const active = tagList(tags).includes(tag);
-                return (
-                  <button key={tag} type="button" onClick={() => setTags(toggleTag(tags, tag))}
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
-                      active
-                        ? 'bg-primary text-primary-foreground'
-                        : 'border border-border bg-subtle text-muted hover:text-foreground'
-                    }`}>
+            {/* Выпадающий список предустановленных тегов-сегментов; выбранные — чипы с ✕ */}
+            <select className={field} value=""
+              onChange={(e) => e.target.value && setTags(toggleTag(tags, e.target.value))}>
+              <option value="">+ Добавить тег…</option>
+              {PRESET_TAGS.filter((tag) => !tagList(tags).includes(tag)).map((tag) => (
+                <option key={tag} value={tag}>{tag}</option>
+              ))}
+            </select>
+            {tagList(tags).length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {tagList(tags).map((tag) => (
+                  <span key={tag}
+                    className="inline-flex items-center gap-1 rounded-full bg-subtle px-2.5 py-1 text-xs font-medium">
                     {tag}
-                  </button>
-                );
-              })}
-            </div>
+                    <button type="button" aria-label={`убрать ${tag}`}
+                      onClick={() => setTags(toggleTag(tags, tag))}
+                      className="text-muted hover:text-red-600">✕</button>
+                  </span>
+                ))}
+              </div>
+            )}
             <input className={field} value={tags} onChange={(e) => setTags(e.target.value)} placeholder="свой тег через запятую" />
           </div>
           <label className={label}>
