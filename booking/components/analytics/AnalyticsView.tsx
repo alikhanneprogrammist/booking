@@ -6,7 +6,7 @@ import {Link, useRouter} from '@/i18n/navigation';
 import type {MockBooking, MockResource, MockClient, MockAddon} from '@/lib/types';
 import {
   kpis, byResource, byEnum, topClients, addonStats,
-  prepaymentTotal, byPayment, discountsTotal, byDay, toMonthly, byWeekday,
+  prepaymentTotal, byPayment, byDay, toMonthly, byWeekday,
   type CountRevenue,
 } from '@/lib/analytics';
 import {sectionHead} from '@/lib/ui';
@@ -28,7 +28,6 @@ export default function AnalyticsView({
   const t = useTranslations('analytics');
   const ts = useTranslations('status');
   const tsrc = useTranslations('source');
-  const tt = useTranslations('tariff');
   const tpm = useTranslations('payment');
   const locale = useLocale();
   const router = useRouter();
@@ -66,7 +65,6 @@ export default function AnalyticsView({
   const resRows = useMemo(() => byResource(active), [active]);
   const statusRows = useMemo(() => byEnum(bookings, 'status'), [bookings]);
   const sourceRows = useMemo(() => byEnum(active, 'source'), [active]);
-  const tariffRows = useMemo(() => byEnum(active, 'tariff'), [active]);
   const top = useMemo(() => topClients(active, 5), [active]);
   const addonRows = useMemo(() => addonStats(active), [active]);
   const paymentRows = useMemo(() => byPayment(prepaid), [prepaid]);
@@ -194,7 +192,6 @@ export default function AnalyticsView({
           {label: t('kpi.avgCheck'), value: money(k.avgCheck)},
           {label: t('kpi.guests'), value: k.guests.toLocaleString(locale)},
           {label: t('kpi.prepayments'), value: money(prepaymentTotal(prepaid))},
-          {label: t('kpi.discounts'), value: money(discountsTotal(active))},
         ].map((c) => (
           <div key={c.label} className="rounded-lg border border-border bg-card p-3">
             <div className="text-xs text-muted">{c.label}</div>
@@ -250,10 +247,9 @@ export default function AnalyticsView({
       </section>
 
       {/* Разбивки */}
-      <section className="mt-6 grid gap-4 sm:grid-cols-3">
+      <section className="mt-6 grid gap-4 sm:grid-cols-2">
         {breakdown(t('byStatus'), statusRows, (v) => ts(v), ['CANCELLED', 'NO_SHOW'])}
         {breakdown(t('bySource'), sourceRows, (v) => tsrc(v))}
-        {breakdown(t('byTariff'), tariffRows, (v) => tt(v))}
       </section>
 
       {/* Деньги: способы оплаты предоплат + дни недели */}

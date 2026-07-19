@@ -7,7 +7,7 @@ import {durationHours, intervalsOverlap} from '@/lib/time';
 import {toLocalInput, fromLocalInput, fmtTime} from '@/lib/calendar';
 import {saveBooking, cancelBookingAction, getBookingHistory} from '@/lib/actions';
 import {dialogField, dialogLabel} from '@/lib/ui';
-import {TARIFFS, DISCOUNT_TYPES, BOOKING_STATUSES, BOOKING_SOURCES, PAYMENT_METHODS} from '@/lib/enums';
+import {BOOKING_STATUSES, BOOKING_SOURCES, PAYMENT_METHODS} from '@/lib/enums';
 import type {
   MockResource, MockAddon, MockClient, MockBooking, Tariff, BookingStatus, BookingSource, DiscountType,
   PaymentMethod,
@@ -53,7 +53,9 @@ export default function BookingDialog({
     String(init ? durationHours(defaultStart, defaultEnd) : 3),
   );
   const [guests, setGuests] = useState(init?.guests ?? 2);
-  const [tariff, setTariff] = useState<Tariff>(init?.tariff ?? 'HOURLY');
+  // Тариф и скидка из формы убраны (не используются): новые брони — HOURLY без
+  // скидки, у старых значения сохраняются как есть и не перетираются при правке.
+  const tariff: Tariff = init?.tariff ?? 'HOURLY';
   const [status, setStatus] = useState<BookingStatus>(init?.status ?? 'NEW');
   const [source, setSource] = useState<BookingSource>(init?.source ?? 'ADMIN');
   const [qty, setQty] = useState<Record<string, number>>(() => {
@@ -61,8 +63,8 @@ export default function BookingDialog({
     init?.addons.forEach((a) => (m[a.addonId] = a.qty));
     return m;
   });
-  const [discountType, setDiscountType] = useState<DiscountType>(init?.discountType ?? 'NONE');
-  const [discountValue, setDiscountValue] = useState(String(init?.discountValue ?? 0));
+  const discountType: DiscountType = init?.discountType ?? 'NONE';
+  const discountValue = String(init?.discountValue ?? 0);
   const [total, setTotal] = useState(String(init?.total ?? 0));
   // «Итого» правлено руками В ЭТОМ диалоге → авторасчёт выключен до кнопки «Авторасчёт».
   const [totalTouched, setTotalTouched] = useState(false);
@@ -285,12 +287,6 @@ export default function BookingDialog({
             </div>
           </div>
           <label className={labelCls}>
-            {tb('tariff')}
-            <select className={fieldCls} value={tariff} onChange={(e) => setTariff(e.target.value as Tariff)}>
-              {TARIFFS.map((x) => <option key={x} value={x}>{tt(x)}</option>)}
-            </select>
-          </label>
-          <label className={labelCls}>
             {tb('guests')}
             <input type="number" min={1} className={fieldCls} value={guests} onChange={(e) => setGuests(Number(e.target.value))} />
           </label>
@@ -334,29 +330,6 @@ export default function BookingDialog({
             })}
           </div>
         </div>
-
-        {/* Скидка (ТЗ §4.9): % или фикс. сумма — пишется в историю клиента */}
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          <label className={labelCls}>
-            {tb('discount')}
-            <select className={fieldCls} value={discountType}
-              onChange={(e) => setDiscountType(e.target.value as DiscountType)}>
-              {DISCOUNT_TYPES.map((x) => <option key={x} value={x}>{tb(`discountKind.${x}`)}</option>)}
-            </select>
-          </label>
-          {discountType !== 'NONE' && (
-            <label className={labelCls}>
-              {discountType === 'PERCENT' ? tb('discountPercentValue') : tb('discountAmountValue')}
-              <input type="number" min={0} className={fieldCls} value={discountValue}
-                onChange={(e) => setDiscountValue(e.target.value)} />
-            </label>
-          )}
-        </div>
-        {price.discountAmount > 0 && (
-          <div className="mt-1 text-[11px] text-muted">
-            {tb('subtotal')}: {price.subtotal.toLocaleString()} ₸ · {tb('discount')}: −{price.discountAmount.toLocaleString()} ₸
-          </div>
-        )}
 
         {/* Суммы + авторасчёт (ТЗ §4.9 FR-PRICE-3) */}
         <div className="mt-3 grid grid-cols-3 gap-3">
