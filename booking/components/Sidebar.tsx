@@ -8,7 +8,7 @@ const items = [
   {href: '/clients', key: 'clients', adminOnly: false},
   {href: '/birthdays', key: 'birthdays', adminOnly: false},
   {href: '/analytics', key: 'analytics', adminOnly: true},
-  {href: '/prepayments', key: 'prepayments', adminOnly: true},
+  {href: '/prepayments', key: 'prepayments', adminOnly: false},
   {href: '/settings', key: 'admin', adminOnly: true},
 ] as const;
 

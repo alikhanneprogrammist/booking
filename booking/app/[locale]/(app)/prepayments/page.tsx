@@ -1,6 +1,7 @@
 import {setRequestLocale} from 'next-intl/server';
 import PrepaymentsView from '@/components/prepayments/PrepaymentsView';
 import {getBookingsPrepaidBetween, getArchivePrepaymentsBetween, getResources, getClients, getUsers} from '@/lib/queries';
+import {currentUser} from '@/lib/auth-helpers';
 import {toAlmaty, fromAlmaty} from '@/lib/time';
 
 export const dynamic = 'force-dynamic';
@@ -29,12 +30,13 @@ export default async function PrepaymentsPage({
   const from = fromAlmaty(new Date(year, month - 1, 1));
   const to = fromAlmaty(new Date(year, month, 1));
 
-  const [bookings, archive, resources, clients, users] = await Promise.all([
+  const [bookings, archive, resources, clients, users, user] = await Promise.all([
     getBookingsPrepaidBetween(from, to),
     getArchivePrepaymentsBetween(from, to),
     getResources(),
     getClients(),
     getUsers(),
+    currentUser(),
   ]);
 
   return (
@@ -47,6 +49,7 @@ export default async function PrepaymentsPage({
         users={users}
         year={year}
         month={month}
+        isAdmin={user?.role === 'ADMIN'}
       />
     </div>
   );

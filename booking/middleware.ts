@@ -9,7 +9,8 @@ const {auth} = NextAuth(authConfig);
 
 const LOCALE_RE = /^\/(ru|kk)(\/.*)?$/;
 // Все админ-разделы теперь под /settings (Заведение/Объекты/Сотрудники/Публичная страница).
-const ADMIN_PREFIXES = ['/settings', '/analytics', '/prepayments'];
+// «Предоплаты» доступны всем сотрудникам: менеджеры вносят предоплаты вручную.
+const ADMIN_PREFIXES = ['/settings', '/analytics'];
 // Публичные пути (без логина): страница входа и виджет заявок клиента.
 const PUBLIC_PATHS = ['/login', '/book'];
 

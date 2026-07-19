@@ -1,9 +1,11 @@
 'use client';
 
-import {useMemo} from 'react';
+import {useMemo, useState} from 'react';
 import {useLocale, useTranslations} from 'next-intl';
 import {Link, useRouter} from '@/i18n/navigation';
 import {toAlmaty} from '@/lib/time';
+import {removeArchivePrepayment} from '@/lib/actions';
+import AddPrepaymentDialog from './AddPrepaymentDialog';
 import type {
   ArchivePrepayment, BookingStatus, MockBooking, MockClient, MockResource, MockUser, PaymentMethod,
 } from '@/lib/types';
@@ -22,12 +24,13 @@ type JournalRow = {
   note?: string;
   manager?: string;
   status?: BookingStatus;
+  isArchive?: boolean; // строка журнала (архив/ручной ввод) — можно удалить админом
 };
 
 // Журнал предоплат — колонки один в один как в эксель-файле бухгалтерии:
 // Сумма п/о · Тип п/о · Имя гостя · VIP № · Дата оплаты · Дата посещения · Примечания · Ответственный.
 export default function PrepaymentsView({
-  bookings, archive, resources, clients, users, year, month,
+  bookings, archive, resources, clients, users, year, month, isAdmin,
 }: {
   bookings: MockBooking[];
   archive: ArchivePrepayment[];
@@ -36,6 +39,7 @@ export default function PrepaymentsView({
   users: MockUser[];
   year: number;
   month: number; // 1–12
+  isAdmin: boolean;
 }) {
   const t = useTranslations('prepayments');
   const tpm = useTranslations('payment');
@@ -74,6 +78,7 @@ export default function PrepaymentsView({
       visitAt: a.visitAt,
       note: a.note,
       manager: a.manager,
+      isArchive: true,
     }));
     return [...fromBookings, ...fromArchive].sort(
       (a, b) => (a.paidAt?.getTime() ?? 0) - (b.paidAt?.getTime() ?? 0),
@@ -97,6 +102,21 @@ export default function PrepaymentsView({
   };
 
   const isCancelled = (r: JournalRow) => r.status === 'CANCELLED' || r.status === 'NO_SHOW';
+
+  const [showAdd, setShowAdd] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Удаление ошибочной строки журнала (только архив/ручной ввод, только ADMIN).
+  async function removeRow(id: string) {
+    if (!window.confirm(t('deleteConfirm'))) return;
+    setDeletingId(id);
+    try {
+      await removeArchivePrepayment(id);
+      router.refresh();
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   // Выгрузка месяца в .xlsx — те же колонки, что и таблица (и эксель бухгалтерии).
   async function downloadXlsx() {
@@ -134,6 +154,10 @@ export default function PrepaymentsView({
             className="ml-2 rounded-md border border-border px-2.5 py-1.5 text-sm hover:bg-subtle">
             ⬇ {t('download')}
           </button>
+          <button onClick={() => setShowAdd(true)}
+            className="ml-1 rounded-md bg-primary px-2.5 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90">
+            + {t('add')}
+          </button>
         </div>
       </div>
 
@@ -164,6 +188,7 @@ export default function PrepaymentsView({
                 <th className="px-3 py-2">{t('visitDate')}</th>
                 <th className="px-3 py-2">{t('note')}</th>
                 <th className="px-3 py-2">{t('manager')}</th>
+                {isAdmin && <th className="w-8 px-2 py-2" />}
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -186,6 +211,15 @@ export default function PrepaymentsView({
                       {cancelled && <span className="ml-1 text-xs">({ts(r.status!)})</span>}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2">{r.manager || '—'}</td>
+                    {isAdmin && (
+                      <td className="px-2 py-2 text-center">
+                        {r.isArchive && (
+                          <button onClick={() => removeRow(r.id)} disabled={deletingId === r.id}
+                            aria-label={t('deleteRow')} title={t('deleteRow')}
+                            className="text-muted hover:text-red-600 disabled:opacity-50">✕</button>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 );
               })}
@@ -193,6 +227,8 @@ export default function PrepaymentsView({
           </table>
         </div>
       )}
+
+      {showAdd && <AddPrepaymentDialog resources={resources} onClose={() => setShowAdd(false)} />}
     </div>
   );
 }

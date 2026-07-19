@@ -1,11 +1,12 @@
-import {requireAdmin} from '@/lib/auth-helpers';
+import {currentUser} from '@/lib/auth-helpers';
 
-// Отчёт по предоплатам (деньги) — только для ADMIN (гард здесь + в middleware).
+// Журнал предоплат — для всех сотрудников (менеджеры вносят предоплаты вручную).
+// Неавторизованных отсекает middleware; здесь серверный дубль-гард.
 export default async function PrepaymentsLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  await requireAdmin();
+  if (!(await currentUser())) throw new Error('FORBIDDEN: требуется вход');
   return <>{children}</>;
 }
