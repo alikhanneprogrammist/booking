@@ -114,16 +114,20 @@ export interface DayPoint {
 
 /**
  * Динамика по дням Алматы: сплошная ось fromISO..toISO (обе границы включительно,
- * формат YYYY-MM-DD), дни без броней — нулями.
+ * формат YYYY-MM-DD), дни без событий — нулями.
  */
-export function byDay(bookings: MockBooking[], fromISO: string, toISO: string): DayPoint[] {
+export function pointsByDay(
+  items: Array<{at: Date; value: number}>,
+  fromISO: string,
+  toISO: string,
+): DayPoint[] {
   const m = new Map<string, DayPoint>();
-  for (const b of bookings) {
-    const w = toAlmaty(b.startAt);
+  for (const it of items) {
+    const w = toAlmaty(it.at);
     const k = `${w.getFullYear()}-${String(w.getMonth() + 1).padStart(2, '0')}-${String(w.getDate()).padStart(2, '0')}`;
     const cur = m.get(k) ?? {day: k, count: 0, revenue: 0};
     cur.count += 1;
-    cur.revenue += b.total;
+    cur.revenue += it.value;
     m.set(k, cur);
   }
   const out: DayPoint[] = [];
@@ -136,6 +140,11 @@ export function byDay(bookings: MockBooking[], fromISO: string, toISO: string): 
     cur = new Date(cur.getTime() + 86_400_000);
   }
   return out;
+}
+
+/** Динамика броней по дням — обёртка над pointsByDay (startAt/total). */
+export function byDay(bookings: MockBooking[], fromISO: string, toISO: string): DayPoint[] {
+  return pointsByDay(bookings.map((b) => ({at: b.startAt, value: b.total})), fromISO, toISO);
 }
 
 /** Свёртка дневных точек в месячные (для периодов длиннее ~3 месяцев). */

@@ -3,10 +3,10 @@
 import {useMemo, useState} from 'react';
 import {useLocale, useTranslations} from 'next-intl';
 import {Link, useRouter} from '@/i18n/navigation';
-import type {MockBooking, MockResource, MockClient, MockAddon} from '@/lib/types';
+import type {MockBooking, MockResource, MockClient, MockAddon, DeliveryOrder} from '@/lib/types';
 import {
   kpis, byResource, byEnum, topClients, addonStats,
-  prepaymentTotal, byPayment, byDay, toMonthly, byWeekday,
+  prepaymentTotal, byPayment, byDay, pointsByDay, toMonthly, byWeekday,
   type CountRevenue,
 } from '@/lib/analytics';
 import {sectionHead} from '@/lib/ui';
@@ -14,13 +14,14 @@ import {sectionHead} from '@/lib/ui';
 export type Preset = 'today' | 'week' | 'month' | '30d' | 'custom';
 
 export default function AnalyticsView({
-  bookings, prepaid, resources, clients, addons, preset, rangeFrom, rangeTo,
+  bookings, prepaid, resources, clients, addons, delivery, preset, rangeFrom, rangeTo,
 }: {
   bookings: MockBooking[]; // уже отфильтрованы по периоду на сервере (без импортных нулевой длительности)
   prepaid: MockBooking[]; // предоплаты периода по дате получения денег (вкл. импортированную историю)
   resources: MockResource[];
   clients: MockClient[];
   addons: MockAddon[];
+  delivery: DeliveryOrder[]; // заказы внутренней доставки периода (вкладка «Доставка»)
   preset: Preset;
   rangeFrom: string; // активный диапазон YYYY-MM-DD (конец включительно) —
   rangeTo: string; //   начальные значения полей выбора произвольного периода
@@ -75,6 +76,19 @@ export default function AnalyticsView({
     return days.length > 92 ? toMonthly(days) : days;
   }, [active, rangeFrom, rangeTo]);
   const maxSeries = Math.max(1, ...series.map((d) => d.revenue));
+
+  // Доставка: KPI и динамика. Строка журнала = день из экселя (может содержать
+  // несколько заказов), поэтому «средний чек» — по строкам журнала.
+  const dlv = useMemo(() => {
+    const amount = delivery.reduce((s, o) => s + o.amount, 0);
+    const courier = delivery.reduce((s, o) => s + (o.courierCost ?? 0), 0);
+    return {count: delivery.length, amount, courier, avg: delivery.length ? amount / delivery.length : 0};
+  }, [delivery]);
+  const dlvSeries = useMemo(() => {
+    const days = pointsByDay(delivery.map((o) => ({at: o.date, value: o.amount})), rangeFrom, rangeTo);
+    return days.length > 92 ? toMonthly(days) : days;
+  }, [delivery, rangeFrom, rangeTo]);
+  const maxDlvSeries = Math.max(1, ...dlvSeries.map((d) => d.revenue));
 
   // Метка дня недели по ключу getDay() ('0'=вс): 2026-07-12 — воскресенье.
   const weekdayLabel = (k: string) =>
@@ -295,6 +309,49 @@ export default function AnalyticsView({
               </div>
             ))}
           </div>
+        )}
+      </section>
+
+      {/* Внутренняя доставка (журнал вкладки «Доставка») */}
+      <section className="mt-6">
+        <h2 className={headCls}>{t('delivery.title')}</h2>
+        {dlv.count === 0 ? (
+          emptyBox
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {[
+                {label: t('delivery.orders'), value: dlv.count.toLocaleString(locale)},
+                {label: t('delivery.revenue'), value: money(dlv.amount)},
+                {label: t('delivery.avgCheck'), value: money(dlv.avg)},
+                {label: t('delivery.courier'), value: money(dlv.courier)},
+              ].map((c) => (
+                <div key={c.label} className="rounded-lg border border-border bg-card p-3">
+                  <div className="text-xs text-muted">{c.label}</div>
+                  <div className="mt-1 text-lg font-semibold tracking-tight">{c.value}</div>
+                </div>
+              ))}
+            </div>
+            {dlvSeries.length > 1 && (
+              <div className="mt-3 rounded-lg border border-border p-3">
+                <div className="flex h-28 items-end gap-px">
+                  {dlvSeries.map((d) => (
+                    <div
+                      key={d.day}
+                      title={`${d.day}: ${money(d.revenue)} · ${d.count}`}
+                      className="flex-1 rounded-t bg-primary/60 transition-colors hover:bg-primary"
+                      style={{height: `${Math.max(Math.round((d.revenue / maxDlvSeries) * 100), 2)}%`}}
+                    />
+                  ))}
+                </div>
+                <div className="mt-1 flex justify-between text-[10px] tabular-nums text-muted">
+                  <span>{dlvSeries[0].day}</span>
+                  <span>{dlvSeries[dlvSeries.length - 1].day}</span>
+                </div>
+              </div>
+            )}
+            <p className="mt-1 text-[11px] text-muted">{t('delivery.note')}</p>
+          </>
         )}
       </section>
     </div>

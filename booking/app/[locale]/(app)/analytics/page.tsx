@@ -1,6 +1,6 @@
 import {setRequestLocale} from 'next-intl/server';
 import AnalyticsView, {type Preset} from '@/components/analytics/AnalyticsView';
-import {getBookingsStartingBetween, getBookingsPrepaidBetween, getResources, getClients, getAddons} from '@/lib/queries';
+import {getBookingsStartingBetween, getBookingsPrepaidBetween, getResources, getClients, getAddons, getDeliveryOrdersBetween} from '@/lib/queries';
 import {toAlmaty, fromAlmaty} from '@/lib/time';
 import {almatyDayStart, addDays, fromLocalInput, toLocalInput} from '@/lib/calendar';
 
@@ -45,12 +45,13 @@ export default async function AnalyticsPage({
     from = almatyDayStart(addDays(now, -(days - 1)));
   }
 
-  const [bookingsRaw, prepaid, resources, clients, addons] = await Promise.all([
+  const [bookingsRaw, prepaid, resources, clients, addons, delivery] = await Promise.all([
     getBookingsStartingBetween(from, to),
     getBookingsPrepaidBetween(from, to), // деньги по дате получения (вкл. импортированную историю)
     getResources(),
     getClients(),
     getAddons(),
+    getDeliveryOrdersBetween(from, to),
   ]);
 
   // Импортированные из эксель-журнала записи (нулевая длительность [X, X)) — не брони,
@@ -68,6 +69,7 @@ export default async function AnalyticsPage({
         resources={resources}
         clients={clients}
         addons={addons}
+        delivery={delivery}
         preset={preset}
         rangeFrom={fmt(from)}
         rangeTo={fmt(addDays(to, -1))}
