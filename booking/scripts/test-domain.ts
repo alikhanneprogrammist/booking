@@ -1,6 +1,7 @@
 // Юнит-тесты чистой доменной логики (без БД). Запуск: npx tsx scripts/test-domain.ts
 import {durationHours, isWeekend, intervalsOverlap, fromAlmaty} from '../lib/time';
 import {computePrice, type PricingResource} from '../lib/pricing';
+import {formatPhoneDraft, normalizePhone} from '../lib/phone';
 
 let failed = 0;
 function check(name: string, cond: boolean, got?: unknown) {
@@ -53,6 +54,22 @@ check('сутки + кальян + СПА → 335 000', withAddons.total === 335
 
 const overCap = computePrice(vip7, 'FULL_DAY', D('2026-06-22T14:00:00Z'), D('2026-06-23T14:00:00Z'), [], 30);
 check('гости сверх вместимости → предупреждение, не блок', overCap.warnings.length === 1, overCap.warnings);
+
+console.log('phone.ts (статичный +7 и иностранные номера)');
+check('пусто → +7', formatPhoneDraft('') === '+7', formatPhoneDraft(''));
+check('8701… → +7701…', formatPhoneDraft('87011234567') === '+77011234567', formatPhoneDraft('87011234567'));
+check('голая вставка 10 цифр → +7…', formatPhoneDraft('7011234567') === '+77011234567', formatPhoneDraft('7011234567'));
+check('чужой код: +996 остаётся', formatPhoneDraft('+996700123456') === '+996700123456', formatPhoneDraft('+996700123456'));
+check('вставка +996 после +7 чистит префикс',
+  formatPhoneDraft('+7+996 700 123 456', '+7') === '+996700123456', formatPhoneDraft('+7+996 700 123 456', '+7'));
+check('вставка +7707 после +7 не двоит префикс',
+  formatPhoneDraft('+7+7 707 123 45 67', '+7') === '+77071234567', formatPhoneDraft('+7+7 707 123 45 67', '+7'));
+check('стирание +996 не дорисовывает 7', formatPhoneDraft('+99670012345', '+996700123456') === '+99670012345');
+check('стёрли всё → снова +7', formatPhoneDraft('+', '+9') === '+7', formatPhoneDraft('+', '+9'));
+check('normalize: 8701… → +7701…', normalizePhone('8 701 123 45 67') === '+77011234567');
+check('normalize: 10 цифр → +7…', normalizePhone('701 123 45 67') === '+77011234567');
+check('normalize: +996 как есть', normalizePhone('+996 700 123 456') === '+996700123456');
+check('normalize: +81 (Япония) не превращается в +71', normalizePhone('+81 90 1234 5678') === '+819012345678', normalizePhone('+81 90 1234 5678'));
 
 console.log(failed === 0 ? '\nВСЕ ТЕСТЫ ПРОЙДЕНЫ ✅' : `\n${failed} ТЕСТ(ОВ) УПАЛО ❌`);
 process.exit(failed === 0 ? 0 : 1);

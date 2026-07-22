@@ -1,17 +1,29 @@
 /**
  * Нормализация телефона к единому формату +7XXXXXXXXXX (ТЗ FR-CLI-5, FR-AUTH-1).
  * Используется и при входе, и при проверке уникальности клиентов/сотрудников.
+ *
+ * Номер, введённый со своим «+кодом» страны (например «+996…»), сохраняется
+ * как есть: правила «8→7» и «10 цифр → дописать 7» — только для местного
+ * формата без «+» (иначе «+81…» Японии превращался бы в «+71…»).
  */
 export function normalizePhone(input: string): string {
-  let d = (input ?? '').replace(/\D/g, '');
-  if (d.startsWith('8')) d = '7' + d.slice(1); // 8XXX… → 7XXX…
-  if (d.length === 10) d = '7' + d; // без кода страны
+  const s = (input ?? '').trim();
+  let d = s.replace(/\D/g, '');
+  if (!s.startsWith('+')) {
+    if (d.startsWith('8')) d = '7' + d.slice(1); // 8XXX… → 7XXX…
+    if (d.length === 10) d = '7' + d; // без кода страны
+  }
   return d ? '+' + d : '';
 }
 
 /**
  * Live-форматирование поля телефона при вводе: префикс «+7» всегда на месте
  * (пустое поле → «+7», «8701…» → «+7701…»), максимум 11 цифр.
+ *
+ * Иностранный номер: ввод/вставка с чужим «+кодом» («+996…») отключает
+ * статичный «+7» — цифры остаются как введены (до 15, максимум E.164).
+ * Вставка полного номера ПОСЛЕ префикса («+7» + «+996…») чистит префикс:
+ * берём часть от последнего «+». Стереть всё → поле снова «+7».
  *
  * prev — предыдущее значение поля. Если текст стал короче, это стирание:
  * правило «10 цифр без "+" → дописать код страны» НЕ применяется — иначе
@@ -20,12 +32,16 @@ export function normalizePhone(input: string): string {
  * (в т.ч. код страны) всё равно делает normalizePhone на сохранении.
  */
 export function formatPhoneDraft(raw: string, prev = ''): string {
-  let d = raw.replace(/\D/g, '');
+  const lastPlus = raw.lastIndexOf('+');
+  const s = (lastPlus > 0 ? raw.slice(lastPlus) : raw).trim();
+  let d = s.replace(/\D/g, '');
+  // Чужой код страны (есть «+», цифры не с 7) — без статичного префикса.
+  if (s.startsWith('+') && d !== '' && !d.startsWith('7')) return '+' + d.slice(0, 15);
   if (d.startsWith('8')) d = '7' + d.slice(1);
   const isDeleting = prev !== '' && raw.length < prev.length;
   // Код страны дорисовываем только «голой» вставке (10 цифр БЕЗ «+» в начале),
   // и только когда это не стирание.
-  if (d.length === 10 && !raw.trim().startsWith('+') && !isDeleting) d = '7' + d;
+  if (d.length === 10 && !s.startsWith('+') && !isDeleting) d = '7' + d;
   if (!d.startsWith('7')) d = '7' + d;
   return '+' + d.slice(0, 11);
 }
