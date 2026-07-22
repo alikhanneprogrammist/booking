@@ -111,16 +111,15 @@ function parseSheet(matrix: unknown[][], sheet: string, skipped: string[]): Entr
     const promo = cellStr(r, 8) || null;
     const noteRaw = cellStr(r, 5) || null;
 
-    // День без заказа: нет ни суммы, ни адреса (бывает только акция или
-    // одинокий телефон — остаток скопированных ячеек, в итоги листа не входит).
-    if (!amount && !address) {
-      if (courier || noteRaw || phone) skipped.push(`${sheet}: ${JSON.stringify(r).slice(0, 120)}`);
+    // Без суммы не импортируем вообще (решение Алихана): пустые дни, дни
+    // только с акцией/телефоном и заказы с незаполненной суммой — пропуск с логом.
+    if (!amount) {
+      if (address || phone || courier || noteRaw) {
+        skipped.push(`${sheet}: ${JSON.stringify(r).slice(0, 140)}`);
+      }
       continue;
     }
 
-    // Сумма не распозналась, но заказ был (бартер/не внесли) — импортируем с 0,
-    // исходный текст ячейки сохраняем в примечании.
-    const amountText = !amount && cellStr(r, 3) ? `сумма в экселе: «${cellStr(r, 3)}»` : null;
     const date = shiftDays(week, weekdayIdx);
     const courierCost = courier > 0 ? courier : null;
 
@@ -130,7 +129,7 @@ function parseSheet(matrix: unknown[][], sheet: string, skipped: string[]): Entr
     const addrParts = count === 1 ? [] : splitAddresses(String(r?.[6] ?? ''));
     if (addrParts.length <= 1) {
       const note =
-        [count > 1 ? `заказов за день: ${count}` : null, noteRaw, amountText]
+        [count > 1 ? `заказов за день: ${count}` : null, noteRaw]
           .filter(Boolean)
           .join('; ') || null;
       out.push({date, amount, courierCost, address, phone, promo, note, sheet});
@@ -156,7 +155,7 @@ function parseSheet(matrix: unknown[][], sheet: string, skipped: string[]): Entr
         promo,
         // Примечание дня и мусорную сумму не дублируем — только на первой записи.
         note:
-          [i === 0 ? noteRaw : null, i === 0 ? amountText : null, splitNote, mismatch]
+          [i === 0 ? noteRaw : null, splitNote, mismatch]
             .filter(Boolean)
             .join('; ') || null,
         sheet,
@@ -236,13 +235,8 @@ async function main() {
     SPLITS.forEach((s) => console.log('  ', s));
   }
   if (skipped.length) {
-    console.log('Пропущенные строки (день без суммы и адреса, но с данными):');
+    console.log('Пропущено (в экселе нет суммы — не импортируем):');
     skipped.forEach((s) => console.log('  ', s));
-  }
-  const zeroAmount = entries.filter((e) => !e.amount);
-  if (zeroAmount.length) {
-    console.log('Строки с нулевой суммой (сумма в экселе не распознана — проверить вручную):');
-    zeroAmount.forEach((e) => console.log(`   ${wallKey(e.date)} · ${e.address ?? '—'} · ${e.note ?? ''}`));
   }
   if (dryRun) {
     console.log('\n--dry-run: в базу ничего не записано.');
