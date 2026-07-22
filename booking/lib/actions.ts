@@ -478,6 +478,85 @@ export async function removeArchivePrepayment(id: string) {
   return {ok: true as const};
 }
 
+// ───────────────────────── Журнал внутренней доставки ──────────────────
+// Строки пишутся в DeliveryOrder: видны только во вкладке «Доставка»,
+// в аналитику/клиентов/календарь не попадают. Менеджеры добавляют и правят,
+// удаление — только ADMIN (как в журнале предоплат).
+
+export interface DeliveryOrderInput {
+  date: Date;
+  amount: number;
+  courierCost?: number | null;
+  address?: string;
+  phone?: string;
+  promo?: string;
+  note?: string;
+}
+
+// Общая проверка полей заказа доставки; null — данные некорректны.
+function parseDeliveryInput(input: DeliveryOrderInput) {
+  const amount = Math.round(Number(input.amount));
+  const date = new Date(input.date);
+  const courierCost =
+    input.courierCost === null || input.courierCost === undefined
+      ? null
+      : Math.round(Number(input.courierCost));
+  if (
+    !Number.isFinite(amount) || amount <= 0 || Number.isNaN(date.getTime()) ||
+    (courierCost !== null && (!Number.isFinite(courierCost) || courierCost < 0))
+  ) {
+    return null;
+  }
+  return {
+    date,
+    amount,
+    courierCost,
+    address: (input.address ?? '').trim() || null,
+    phone: (input.phone ?? '').trim() || null,
+    promo: (input.promo ?? '').trim() || null,
+    note: (input.note ?? '').trim() || null,
+  };
+}
+
+/** Ручная строка журнала доставки — доступно всем сотрудникам. */
+export async function addDeliveryOrder(input: DeliveryOrderInput) {
+  const user = await currentUser();
+  if (!user) return {ok: false as const, error: 'FORBIDDEN' as const};
+
+  const data = parseDeliveryInput(input);
+  if (!data) return {ok: false as const, error: 'INVALID' as const};
+
+  await prisma.deliveryOrder.create({
+    data: {...data, manager: user.name ?? null}, // ответственный — кто внёс
+  });
+  refresh();
+  return {ok: true as const};
+}
+
+/** Правка строки журнала доставки — доступно всем сотрудникам. */
+export async function updateDeliveryOrder(id: string, input: DeliveryOrderInput) {
+  const user = await currentUser();
+  if (!user) return {ok: false as const, error: 'FORBIDDEN' as const};
+
+  const data = parseDeliveryInput(input);
+  if (!data) return {ok: false as const, error: 'INVALID' as const};
+
+  const existing = await prisma.deliveryOrder.findUnique({where: {id}, select: {id: true}});
+  if (!existing) return {ok: false as const, error: 'NOT_FOUND' as const};
+
+  await prisma.deliveryOrder.update({where: {id}, data}); // manager не трогаем — остаётся автор
+  refresh();
+  return {ok: true as const};
+}
+
+/** Удаление ошибочной строки журнала доставки — только ADMIN. */
+export async function removeDeliveryOrder(id: string) {
+  await requireAdmin();
+  await prisma.deliveryOrder.delete({where: {id}});
+  refresh();
+  return {ok: true as const};
+}
+
 /**
  * Убрать предоплату из брони (строка журнала «Предоплаты» из брони) — только ADMIN.
  * Бронь остаётся, обнуляются prepayment/prepaidAt (строка уходит и из аналитики);

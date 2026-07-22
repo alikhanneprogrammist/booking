@@ -73,6 +73,18 @@ export interface ArchivePrepayment {
   manager?: string;
 }
 
+export interface DeliveryOrder {
+  id: string;
+  date: Date;
+  amount: number;
+  courierCost?: number;
+  address?: string;
+  phone?: string;
+  promo?: string;
+  note?: string;
+  manager?: string;
+}
+
 export interface MockBooking {
   id: string;
   resourceId: string;

@@ -1,6 +1,6 @@
 import {prisma} from './db';
 import type {
-  MockResource, MockAddon, MockClient, MockUser, MockBooking, ArchivePrepayment,
+  MockResource, MockAddon, MockClient, MockUser, MockBooking, ArchivePrepayment, DeliveryOrder,
 } from './types';
 import {DEFAULT_SETTINGS, SETTINGS_ID, type AppSettings} from './settings';
 
@@ -171,6 +171,25 @@ export async function getArchivePrepaymentsBetween(from: Date, to: Date): Promis
     resourceLabel: r.resourceLabel,
     paidAt: r.paidAt,
     visitAt: r.visitAt,
+    note: r.note ?? undefined,
+    manager: r.manager ?? undefined,
+  }));
+}
+
+/** Заказы внутренней доставки за окно [from, to) — только для вкладки «Доставка». */
+export async function getDeliveryOrdersBetween(from: Date, to: Date): Promise<DeliveryOrder[]> {
+  const rows = await prisma.deliveryOrder.findMany({
+    where: {date: {gte: from, lt: to}},
+    orderBy: {date: 'asc'},
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    date: r.date,
+    amount: r.amount,
+    courierCost: r.courierCost ?? undefined,
+    address: r.address ?? undefined,
+    phone: r.phone ?? undefined,
+    promo: r.promo ?? undefined,
     note: r.note ?? undefined,
     manager: r.manager ?? undefined,
   }));
