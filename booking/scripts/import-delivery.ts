@@ -1,8 +1,9 @@
 // Разовый импорт журнала внутренней доставки из эксель-файла «Еженедельный анализ
 // доставки OFFICE» (листы-недели, блок «Свод недельной Внутренней Доставки»)
-// в таблицу DeliveryOrder. Одна строка экселя = один день = одна запись журнала
-// (если заказов за день несколько — сумма общая, в примечание дописывается
-// «заказов за день: N»; подтверждено Алиханом). Блок Яндекс/Wolt не импортируется.
+// в таблицу DeliveryOrder. Если в дне несколько заказов (адреса через запятую/
+// слэш) — каждый заказ отдельной записью: адрес и телефон свои, сумма дня
+// делится поровну (в экселе сумм по заказам нет; помечено в примечании).
+// Блок Яндекс/Wolt не импортируется.
 //
 // Дата берётся из ИМЕНИ ЛИСТА (dd.mm-dd.mm, год 2026) + колонки «Дни недели»:
 // в части листов ячейки «Дата» скопированы со старой недели и врут (25.05, 01.06),
@@ -16,7 +17,9 @@
 //   docker compose run --rm -v "$PWD/../Еженедельный анализ доставки OFFICE 13.07-19.07.xlsx:/data/delivery.xlsx:ro" \
 //     app npx tsx scripts/import-delivery.ts /data/delivery.xlsx --dry-run
 //
-// Идемпотентно: уже импортированные строки (та же дата+сумма+адрес+телефон) пропускаются.
+// Идемпотентно: уже импортированные строки (та же дата+сумма+адрес+телефон)
+// пропускаются. Флаг --replace сначала удаляет прежний импорт (записи без
+// ответственного) в диапазоне дат файла — для перезаливки после смены правил.
 
 import {PrismaClient} from '@prisma/client';
 import * as XLSX from 'xlsx';
@@ -31,6 +34,9 @@ const YEAR = 2026;
 const WEEKDAYS = [
   'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье',
 ];
+
+// Лог разбивок мульти-дней на отдельные заказы — показывается для сверки.
+const SPLITS: string[] = [];
 
 type Wall = {y: number; m: number; d: number};
 
@@ -115,23 +121,81 @@ function parseSheet(matrix: unknown[][], sheet: string, skipped: string[]): Entr
     // Сумма не распозналась, но заказ был (бартер/не внесли) — импортируем с 0,
     // исходный текст ячейки сохраняем в примечании.
     const amountText = !amount && cellStr(r, 3) ? `сумма в экселе: «${cellStr(r, 3)}»` : null;
-    const note =
-      [count > 1 ? `заказов за день: ${count}` : null, noteRaw, amountText]
-        .filter(Boolean)
-        .join('; ') || null;
+    const date = shiftDays(week, weekdayIdx);
+    const courierCost = courier > 0 ? courier : null;
 
-    out.push({
-      date: shiftDays(week, weekdayIdx),
-      amount,
-      courierCost: courier > 0 ? courier : null,
-      address,
-      phone,
-      promo,
-      note,
-      sheet,
-    });
+    // Несколько заказов в одной строке дня → отдельная запись на каждый адрес.
+    // «Количество заказов = 1» в экселе — не разбиваем (запятая внутри адреса).
+    // Разбиваем НЕсхлопнутую строку: 2+ пробела подряд — тоже разделитель.
+    const addrParts = count === 1 ? [] : splitAddresses(String(r?.[6] ?? ''));
+    if (addrParts.length <= 1) {
+      const note =
+        [count > 1 ? `заказов за день: ${count}` : null, noteRaw, amountText]
+          .filter(Boolean)
+          .join('; ') || null;
+      out.push({date, amount, courierCost, address, phone, promo, note, sheet});
+      continue;
+    }
+
+    const phones = splitPhones(String(r?.[7] ?? ''));
+    const k = addrParts.length;
+    SPLITS.push(`${wallKey(date)}: ${k} строк ← «${address}»`);
+    // Суммы по заказам в экселе нет — делим поровну, остаток от округления первому.
+    const amountBase = Math.floor(amount / k);
+    const courierBase = courierCost !== null ? Math.floor(courierCost / k) : null;
+    for (let i = 0; i < k; i++) {
+      const splitNote = `${i + 1}/${k} заказов дня; сумма дня ${amount.toLocaleString('ru-RU')} ₸ разделена поровну`;
+      const mismatch = count > 1 && count !== k ? `в экселе заказов: ${count}` : null;
+      out.push({
+        date,
+        amount: i === 0 ? amount - amountBase * (k - 1) : amountBase,
+        courierCost:
+          courierBase === null ? null : i === 0 ? courierCost! - courierBase * (k - 1) : courierBase,
+        address: addrParts[i],
+        phone: phones[i] ?? null,
+        promo,
+        // Примечание дня и мусорную сумму не дублируем — только на первой записи.
+        note:
+          [i === 0 ? noteRaw : null, i === 0 ? amountText : null, splitNote, mismatch]
+            .filter(Boolean)
+            .join('; ') || null,
+        sheet,
+      });
+    }
   }
   return out;
+}
+
+/**
+ * Разбивка ячейки «Адреса» на отдельные адреса. Разделители: запятая/точка
+ * с запятой; слэш или бэкслэш ПЕРЕД буквой (перед цифрой — номер дома,
+ * «Достык 5/1»); 2+ пробела подряд («Казбек би 3/2    Туран 55/6»).
+ * «кв…» и части с цифры приклеиваются к предыдущей («Аль-Фараби 10, кв.58»,
+ * «ул Женис 31,1 подьезд 8 кв» — один адрес: улицы начинаются с буквы).
+ */
+function splitAddresses(s: string | null): string[] {
+  if (!s) return [];
+  const parts = s
+    .split(/\s*[,;]\s*/)
+    .flatMap((p) => p.split(/\s*[/\\]+\s*(?=[^\s\d/\\])/u))
+    .flatMap((p) => p.split(/\s{2,}/))
+    .map((p) => p.replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+  const out: string[] = [];
+  for (const p of parts) {
+    if ((/^кв\.?\s*\d/i.test(p) || /^\d/.test(p)) && out.length) out[out.length - 1] += `, ${p}`;
+    else out.push(p);
+  }
+  return out;
+}
+
+/** Разбивка ячейки «Телефон»; части без 6+ цифр (текст, обрывки) отбрасываются. */
+function splitPhones(s: string | null): string[] {
+  if (!s) return [];
+  return s
+    .split(/\s*[,;/\\]+\s*|\s{2,}/)
+    .map((p) => p.replace(/\s+/g, ' ').trim())
+    .filter((p) => (p.match(/\d/g) ?? []).length >= 6);
 }
 
 // ─────────────────────────── Основной прогон ────────────────────────────────
@@ -139,9 +203,10 @@ function parseSheet(matrix: unknown[][], sheet: string, skipped: string[]): Entr
 async function main() {
   const args = process.argv.slice(2);
   const dryRun = args.includes('--dry-run');
+  const replace = args.includes('--replace');
   const file = args.find((a) => !a.startsWith('--'));
   if (!file) {
-    console.error('Использование: npx tsx scripts/import-delivery.ts <файл.xlsx> [--dry-run]');
+    console.error('Использование: npx tsx scripts/import-delivery.ts <файл.xlsx> [--dry-run] [--replace]');
     process.exit(1);
   }
 
@@ -166,6 +231,10 @@ async function main() {
 
   const total = entries.reduce((s, e) => s + e.amount, 0);
   console.log(`\nВсего строк: ${entries.length}, общая сумма: ${total.toLocaleString('ru-RU')} ₸`);
+  if (SPLITS.length) {
+    console.log('Дни с несколькими заказами, разбитые на отдельные строки:');
+    SPLITS.forEach((s) => console.log('  ', s));
+  }
   if (skipped.length) {
     console.log('Пропущенные строки (день без суммы и адреса, но с данными):');
     skipped.forEach((s) => console.log('  ', s));
@@ -178,6 +247,16 @@ async function main() {
   if (dryRun) {
     console.log('\n--dry-run: в базу ничего не записано.');
     return;
+  }
+
+  // --replace: убрать прежний импорт (manager IS NULL — ручные записи менеджеров
+  // не трогаем) в диапазоне дат файла, затем залить заново с разбивкой.
+  if (replace && entries.length) {
+    const times = entries.map((e) => almatyNoon(e.date).getTime());
+    const del = await prisma.deliveryOrder.deleteMany({
+      where: {manager: null, date: {gte: new Date(Math.min(...times)), lte: new Date(Math.max(...times))}},
+    });
+    console.log(`--replace: удалено прежних импортированных записей: ${del.count}`);
   }
 
   let created = 0;
