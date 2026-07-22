@@ -4,9 +4,16 @@ import {useState} from 'react';
 import {useTranslations} from 'next-intl';
 import {useRouter} from '@/i18n/navigation';
 import {addDeliveryOrder, updateDeliveryOrder} from '@/lib/actions';
+import {formatPhoneDraft} from '@/lib/phone';
 import {dialogField, dialogLabel} from '@/lib/ui';
 import {toAlmaty} from '@/lib/time';
 import type {DeliveryOrder} from '@/lib/types';
+
+// Телефон необязателен, а в импортированных из экселя днях бывает несколько
+// номеров через запятую/слэш — такие строки не переформатируем, чтобы не
+// потерять данные при правке. Одиночный номер — live-формат как везде.
+const phoneDraft = (v: string, prev: string) =>
+  v.trim() === '' || /[,;/]/.test(v) ? v : formatPhoneDraft(v, prev);
 
 const dateStr = (d: Date) => {
   const w = toAlmaty(d);
@@ -104,8 +111,8 @@ export default function DeliveryOrderDialog({
         <div className="mt-3 grid grid-cols-2 gap-3">
           <label className={dialogLabel}>
             {t('phone')}
-            <input className={dialogField} value={phone}
-              onChange={(e) => setPhone(e.target.value)} />
+            <input type="tel" className={dialogField} value={phone}
+              onChange={(e) => setPhone(phoneDraft(e.target.value, phone))} />
           </label>
           <label className={dialogLabel}>
             {t('promo')}

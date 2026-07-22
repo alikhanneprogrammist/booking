@@ -4,6 +4,7 @@ import {useRef, useState} from 'react';
 import {useTranslations} from 'next-intl';
 import {useRouter} from '@/i18n/navigation';
 import {saveSettings} from '@/lib/actions';
+import {formatPhoneDraft} from '@/lib/phone';
 import type {AppSettings} from '@/lib/settings';
 import {adminInput as inputCls} from '@/lib/ui';
 
@@ -76,13 +77,29 @@ export default function SettingsForm({settings}: {settings: AppSettings}) {
     router.refresh();
   }
 
+  // Телефонные поля — с live-форматированием (+7 статичный, чужой «+код» как есть);
+  // пустое значение допустимо (контакт можно не указывать).
+  const isPhoneKey = (key: VenueTextKey) => key === 'phone' || key === 'whatsapp';
+
   const field = (key: VenueTextKey, type: 'text' | 'textarea' = 'text') => (
     <label className="block">
       <span className="mb-1 block text-xs font-medium text-muted">{t(`venue.${key}`)}</span>
       {type === 'textarea' ? (
         <textarea rows={3} className={inputCls} value={form[key]} onChange={(e) => set(key, e.target.value)} />
       ) : (
-        <input type="text" className={inputCls} value={form[key]} onChange={(e) => set(key, e.target.value)} />
+        <input
+          type={isPhoneKey(key) ? 'tel' : 'text'}
+          className={inputCls}
+          value={form[key]}
+          onChange={(e) =>
+            set(
+              key,
+              isPhoneKey(key) && e.target.value.trim() !== ''
+                ? formatPhoneDraft(e.target.value, form[key])
+                : e.target.value,
+            )
+          }
+        />
       )}
     </label>
   );

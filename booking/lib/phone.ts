@@ -35,6 +35,9 @@ export function formatPhoneDraft(raw: string, prev = ''): string {
   const lastPlus = raw.lastIndexOf('+');
   const s = (lastPlus > 0 ? raw.slice(lastPlus) : raw).trim();
   let d = s.replace(/\D/g, '');
+  // Одинокий «+» — промежуточное состояние ручного набора «+996…»:
+  // не дорисовываем 7, иначе чужой код страны не набрать посимвольно.
+  if (s === '+') return '+';
   // Чужой код страны (есть «+», цифры не с 7) — без статичного префикса.
   if (s.startsWith('+') && d !== '' && !d.startsWith('7')) return '+' + d.slice(0, 15);
   if (d.startsWith('8')) d = '7' + d.slice(1);

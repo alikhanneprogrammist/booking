@@ -65,7 +65,9 @@ check('вставка +996 после +7 чистит префикс',
 check('вставка +7707 после +7 не двоит префикс',
   formatPhoneDraft('+7+7 707 123 45 67', '+7') === '+77071234567', formatPhoneDraft('+7+7 707 123 45 67', '+7'));
 check('стирание +996 не дорисовывает 7', formatPhoneDraft('+99670012345', '+996700123456') === '+99670012345');
-check('стёрли всё → снова +7', formatPhoneDraft('+', '+9') === '+7', formatPhoneDraft('+', '+9'));
+check('одинокий «+» остаётся (набор +996 посимвольно)', formatPhoneDraft('+', '+9') === '+', formatPhoneDraft('+', '+9'));
+check('после «+» цифра 9 → +9 (не +79)', formatPhoneDraft('+9', '+') === '+9', formatPhoneDraft('+9', '+'));
+check('стёрли всё → снова +7', formatPhoneDraft('', '+') === '+7', formatPhoneDraft('', '+'));
 check('normalize: 8701… → +7701…', normalizePhone('8 701 123 45 67') === '+77011234567');
 check('normalize: 10 цифр → +7…', normalizePhone('701 123 45 67') === '+77011234567');
 check('normalize: +996 как есть', normalizePhone('+996 700 123 456') === '+996700123456');
