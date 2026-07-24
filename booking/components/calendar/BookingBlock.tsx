@@ -43,8 +43,9 @@ export default function BookingBlock({
     booking.prepayment > 0 ? `${tc('prepay')}: ${booking.prepayment.toLocaleString(locale)} ₸` : '';
 
   const timeRange = `${fmtTime(booking.startAt, locale)}–${fmtTime(booking.endAt, locale)}`;
+  const tags = client?.tags ?? [];
   // Полная информация в тултипе — маленькие блоки читаемы по наведению.
-  const tooltip = [timeRange, client?.name, preorder, prepay, booking.comment]
+  const tooltip = [timeRange, client?.name, tags.join(', '), preorder, prepay, booking.comment]
     .filter(Boolean)
     .join('\n');
 
@@ -77,6 +78,23 @@ export default function BookingBlock({
         </div>
       )}
       <div className="truncate text-muted">{client?.name ?? '—'}</div>
+      {/* Теги клиента — компактные чипы в одну строку («VIP» — акцентом), хвост обрезается */}
+      {tags.length > 0 && (
+        <div className="flex gap-0.5 overflow-hidden">
+          {tags.map((t) => (
+            <span
+              key={t}
+              className={`shrink-0 rounded px-1 text-[9px] leading-4 ${
+                t.trim().toLowerCase() === 'vip'
+                  ? 'bg-amber-100 font-semibold text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'
+                  : 'bg-subtle text-muted'
+              }`}
+            >
+              {t}
+            </span>
+          ))}
+        </div>
+      )}
       {preorder && <div className="truncate text-[10px]">{preorder}</div>}
       {prepay && <div className="truncate text-[10px] text-emerald-700 dark:text-emerald-400">{prepay}</div>}
       {booking.comment && (
