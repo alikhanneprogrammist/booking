@@ -104,6 +104,17 @@ export async function saveClient(input: {
   }
 }
 
+/** Быстрое сохранение примечания с карточки клиента — доступно всем сотрудникам. */
+export async function saveClientNote(id: string, note: string) {
+  if (!(await currentUser())) return {ok: false as const, error: 'FORBIDDEN' as const};
+  const trimmed = (note ?? '').trim().slice(0, 2000);
+  const existing = await prisma.client.findUnique({where: {id}, select: {id: true}});
+  if (!existing) return {ok: false as const, error: 'NOT_FOUND' as const};
+  await prisma.client.update({where: {id}, data: {note: trimmed || null}});
+  refresh();
+  return {ok: true as const};
+}
+
 export async function removeClient(id: string) {
   if (!(await currentUser())) return {ok: false as const, error: 'FORBIDDEN' as const};
   try {

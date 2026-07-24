@@ -1,9 +1,9 @@
 'use client';
 
-import {useState} from 'react';
+import {useEffect, useState} from 'react';
 import {useLocale, useTranslations} from 'next-intl';
 import {Link, useRouter} from '@/i18n/navigation';
-import {removeClient} from '@/lib/actions';
+import {removeClient, saveClientNote} from '@/lib/actions';
 import {formatBirthday} from '@/lib/birthdays';
 import type {MockClient, MockBooking, MockResource} from '@/lib/types';
 import {TIMEZONE} from '@/lib/time';
@@ -24,6 +24,29 @@ export default function ClientCard({
   const locale = useLocale();
   const router = useRouter();
   const [edit, setEdit] = useState(false);
+
+  // Примечание — редактируется прямо на карточке (без диалога «Редактировать»).
+  const [note, setNote] = useState(client?.note ?? '');
+  const [noteSaving, setNoteSaving] = useState(false);
+  const [noteSaved, setNoteSaved] = useState(false);
+  const noteDirty = note.trim() !== (client?.note ?? '');
+  // Синхронизация после сохранения (в т.ч. через диалог «Редактировать»).
+  useEffect(() => setNote(client?.note ?? ''), [client?.note]);
+
+  async function saveNote() {
+    if (!client || !noteDirty) return;
+    setNoteSaving(true);
+    setNoteSaved(false);
+    try {
+      const res = await saveClientNote(client.id, note);
+      if (res.ok) {
+        setNoteSaved(true);
+        router.refresh();
+      }
+    } finally {
+      setNoteSaving(false);
+    }
+  }
 
   const resOf = (rid: string) => resources.find((r) => r.id === rid);
   const fmtDate = (d: Date) =>
@@ -49,7 +72,6 @@ export default function ClientCard({
           {client.dateOfBirth && (
             <div className="mt-1 text-sm text-muted">🎂 {formatBirthday(client.dateOfBirth, locale)}</div>
           )}
-          {client.note && <div className="mt-2 text-sm">{client.note}</div>}
           <div className="mt-2 flex flex-wrap gap-1">
             {(client.tags ?? []).map((tag) => (
               <span key={tag} className="rounded bg-subtle px-1.5 py-0.5 text-[10px] text-muted ring-1 ring-border">{tag}</span>
@@ -73,6 +95,31 @@ export default function ClientCard({
             className="rounded-md px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
           >
             {t('delete')}
+          </button>
+        </div>
+      </div>
+
+      {/* Примечание — свободные заметки менеджеров, сохраняются прямо отсюда */}
+      <h2 className="mb-2 mt-6 text-sm font-medium uppercase tracking-wide text-muted">{t('note')}</h2>
+      <div className="rounded-lg border border-border bg-card p-3">
+        <textarea
+          rows={3}
+          value={note}
+          placeholder={t('notePlaceholder')}
+          onChange={(e) => {
+            setNote(e.target.value);
+            setNoteSaved(false);
+          }}
+          className="w-full resize-y rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none focus:border-primary"
+        />
+        <div className="mt-2 flex items-center justify-end gap-2">
+          {noteSaved && !noteDirty && <span className="text-xs text-emerald-600 dark:text-emerald-400">✓ {t('noteSaved')}</span>}
+          <button
+            onClick={saveNote}
+            disabled={!noteDirty || noteSaving}
+            className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+          >
+            {noteSaving ? '…' : t('save')}
           </button>
         </div>
       </div>
