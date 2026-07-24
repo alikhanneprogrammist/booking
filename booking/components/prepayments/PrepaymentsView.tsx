@@ -103,6 +103,32 @@ export default function PrepaymentsView({
 
   const isCancelled = (r: JournalRow) => r.status === 'CANCELLED' || r.status === 'NO_SHOW';
 
+  // Цвета типов предоплаты — фиксированные (Каспи — красный, Нал — зелёный, Банк — синий).
+  const METHOD_CHIP: Record<PaymentMethod, string> = {
+    KASPI: 'bg-red-50 text-red-700 ring-red-200 dark:bg-red-950/40 dark:text-red-400 dark:ring-red-900',
+    CASH: 'bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-900',
+    BANK: 'bg-blue-50 text-blue-700 ring-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:ring-blue-900',
+    CASH_KASPI: 'bg-orange-50 text-orange-700 ring-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:ring-orange-900',
+  };
+
+  // Цвет ответственного — стабильный для каждого имени (хеш → палитра).
+  const MANAGER_CHIPS = [
+    'bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:ring-sky-900',
+    'bg-violet-50 text-violet-700 ring-violet-200 dark:bg-violet-950/40 dark:text-violet-400 dark:ring-violet-900',
+    'bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-900',
+    'bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:ring-rose-900',
+    'bg-teal-50 text-teal-700 ring-teal-200 dark:bg-teal-950/40 dark:text-teal-400 dark:ring-teal-900',
+    'bg-indigo-50 text-indigo-700 ring-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:ring-indigo-900',
+    'bg-lime-50 text-lime-700 ring-lime-200 dark:bg-lime-950/40 dark:text-lime-400 dark:ring-lime-900',
+    'bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-200 dark:bg-fuchsia-950/40 dark:text-fuchsia-400 dark:ring-fuchsia-900',
+  ];
+  const managerChip = (name: string) => {
+    let h = 0;
+    for (const ch of name) h = (h * 31 + ch.codePointAt(0)!) % 997;
+    return MANAGER_CHIPS[h % MANAGER_CHIPS.length];
+  };
+  const chipCls = 'inline-block rounded px-1.5 py-0.5 text-[11px] font-medium ring-1';
+
   const [showAdd, setShowAdd] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -198,7 +224,9 @@ export default function PrepaymentsView({
                 return (
                   <tr key={r.id} className={cancelled ? 'text-muted' : ''}>
                     <td className="whitespace-nowrap px-3 py-2 font-medium">{money(r.amount)}</td>
-                    <td className="whitespace-nowrap px-3 py-2">{r.method ? tpm(r.method) : '—'}</td>
+                    <td className="whitespace-nowrap px-3 py-2">
+                      {r.method ? <span className={`${chipCls} ${METHOD_CHIP[r.method]}`}>{tpm(r.method)}</span> : '—'}
+                    </td>
                     <td className="max-w-40 truncate px-3 py-2" title={r.guest}>
                       {r.clientId && clientById.has(r.clientId) ? (
                         <Link href={`/clients/${r.clientId}`} className="hover:underline">{r.guest}</Link>
@@ -211,7 +239,9 @@ export default function PrepaymentsView({
                       {r.note || '—'}
                       {cancelled && <span className="ml-1 text-xs">({ts(r.status!)})</span>}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-2">{r.manager || '—'}</td>
+                    <td className="whitespace-nowrap px-3 py-2">
+                      {r.manager ? <span className={`${chipCls} ${managerChip(r.manager)}`}>{r.manager}</span> : '—'}
+                    </td>
                     {isAdmin && (
                       <td className="px-2 py-2 text-center">
                         <button onClick={() => removeRow(r)} disabled={deletingId === r.id}
