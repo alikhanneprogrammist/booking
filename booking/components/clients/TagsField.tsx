@@ -17,19 +17,22 @@ export function toggleTag(s: string, tag: string): string {
  * Редактор тегов клиента: выпадающий список предустановленных сегментов,
  * выбранные — чипы с ✕, произвольные теги — текстовым полем (через запятую).
  * value — строка «через запятую» (state вызывающего).
+ * excludeFromPresets — теги, которые не предлагать в селекте (уже есть у клиента).
  */
 export default function TagsField({
-  value, onChange,
+  value, onChange, excludeFromPresets = [],
 }: {
   value: string;
   onChange: (next: string) => void;
+  excludeFromPresets?: string[];
 }) {
+  const hidden = [...tagList(value), ...excludeFromPresets];
   return (
     <>
       <select className={dialogField} value=""
         onChange={(e) => e.target.value && onChange(toggleTag(value, e.target.value))}>
         <option value="">+ Добавить тег…</option>
-        {PRESET_TAGS.filter((tag) => !tagList(value).includes(tag)).map((tag) => (
+        {PRESET_TAGS.filter((tag) => !hidden.includes(tag)).map((tag) => (
           <option key={tag} value={tag}>{tag}</option>
         ))}
       </select>

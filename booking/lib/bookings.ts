@@ -3,6 +3,7 @@ import {Prisma} from '@prisma/client';
 import {prisma} from './db';
 import {durationHours} from './time';
 import {computePrice, type PricingResource, type Tariff} from './pricing';
+import {mergeTags} from './tags';
 import {getSettings} from './queries';
 
 // ───────────────────────── Ошибки домена ──────────────────────────────
@@ -107,7 +108,8 @@ export const bookingInput = z.object({
   discountValue: z.number().nonnegative().default(0),
   comment: z.string().max(2000).optional(),
   addons: z.array(ADDON).default([]),
-  // Теги клиента из формы брони: undefined — не трогать, массив — заменить у клиента.
+  // Теги из формы брони ДОБАВЛЯЮТСЯ к тегам клиента (union, см. mergeTags) —
+  // существующие теги бронь никогда не удаляет. undefined/[] — не трогать.
   clientTags: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
 });
 
@@ -254,9 +256,13 @@ export async function createBooking(raw: BookingInput, createdById: string) {
       });
       // Журнал: создание брони.
       await tx.bookingAudit.create({data: {bookingId: b.id, userId: createdById, action: 'CREATE'}});
-      // Синхронизация тегов клиента из формы брони (поле предзаполняется текущими тегами).
-      if (data.clientTags !== undefined) {
-        await tx.client.update({where: {id: data.clientId}, data: {tags: data.clientTags}});
+      // Теги из формы брони добавляются к тегам клиента (union) — накапливаются от визита к визиту.
+      if (data.clientTags?.length) {
+        const client = await tx.client.findUnique({where: {id: data.clientId}, select: {tags: true}});
+        await tx.client.update({
+          where: {id: data.clientId},
+          data: {tags: mergeTags(client?.tags ?? [], data.clientTags)},
+        });
       }
       return b;
     });
@@ -399,11 +405,13 @@ export async function updateBooking(id: string, rawInput: Partial<BookingInput>,
           data: {bookingId: id, userId: actorId, action: 'UPDATE', changes: changes as Prisma.InputJsonValue},
         });
       }
-      // Синхронизация тегов клиента (клиент брони — с учётом возможной смены в патче).
-      if (raw.clientTags !== undefined) {
+      // Теги из формы добавляются клиенту брони (union; клиент — с учётом смены в патче).
+      if (raw.clientTags?.length) {
+        const clientId = raw.clientId ?? existing.clientId;
+        const client = await tx.client.findUnique({where: {id: clientId}, select: {tags: true}});
         await tx.client.update({
-          where: {id: raw.clientId ?? existing.clientId},
-          data: {tags: raw.clientTags},
+          where: {id: clientId},
+          data: {tags: mergeTags(client?.tags ?? [], raw.clientTags)},
         });
       }
       return updated;

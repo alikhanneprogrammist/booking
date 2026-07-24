@@ -176,7 +176,7 @@ function splitAddresses(s: string | null): string[] {
   if (!s) return [];
   const parts = s
     .split(/\s*[,;]\s*/)
-    .flatMap((p) => p.split(/\s*[/\\]+\s*(?=[^\s\d/\\])/u))
+    .flatMap((p) => p.split(/\s*[/\\]+\s*(?=[^\s\d/\\])/))
     .flatMap((p) => p.split(/\s{2,}/))
     .map((p) => p.replace(/\s+/g, ' ').trim())
     .filter(Boolean);

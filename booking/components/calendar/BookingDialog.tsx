@@ -43,8 +43,9 @@ export default function BookingDialog({
 
   const [resourceId, setResourceId] = useState(init?.resourceId ?? prefill?.resourceId ?? resources[0].id);
   const [clientId, setClientId] = useState(init?.clientId ?? clients[0]?.id ?? '');
-  // Теги клиента: предзаполняются текущими, при сохранении брони пишутся в карточку.
-  const [tags, setTags] = useState(() => (clients.find((c) => c.id === clientId)?.tags ?? []).join(', '));
+  // Только НОВЫЕ теги: при сохранении добавляются к тегам клиента (union на сервере),
+  // существующие бронь не удаляет — убрать тег можно только в карточке клиента.
+  const [tags, setTags] = useState('');
   // Дата брони + время начала + длительность в часах; конец считается автоматически
   // (ночные и многодневные брони — просто большим числом часов).
   const [date, setDate] = useState(() => toLocalInput(defaultStart).slice(0, 10));
@@ -95,6 +96,9 @@ export default function BookingDialog({
   }, [booking?.id]);
 
   const resource = resources.find((r) => r.id === resourceId)!;
+  // Текущие теги клиента (статичные чипы) и новые из поля — для отправки и фильтра пресетов.
+  const existingTags = clients.find((c) => c.id === clientId)?.tags ?? [];
+  const newTags = tags.split(',').map((s) => s.trim()).filter(Boolean);
   // Тот же минимум, что применит сервер (lib/bookings.ts): max(объектный, глобальный).
   const effectiveMinHours = Math.max(resource.minHours, minBookingHours);
   const startAt = fromLocalInput(`${date}T${startTime}`);
@@ -151,7 +155,7 @@ export default function BookingDialog({
         discountType,
         discountValue: discountType === 'NONE' ? 0 : Number(discountValue) || 0,
         comment: comment || undefined,
-        clientTags: tags.split(',').map((s) => s.trim()).filter(Boolean),
+        clientTags: newTags.length ? newTags : undefined,
         addons: addons
           .filter((a) => (qty[a.id] ?? 0) > 0)
           .map((a) => ({addonId: a.id, qty: qty[a.id], priceAtBooking: a.price})),
@@ -235,13 +239,23 @@ export default function BookingDialog({
             initialName={clients.find((c) => c.id === clientId)?.name}
             onChange={(id) => {
               setClientId(id);
-              // Смена клиента → поле перезаполняется его тегами.
-              setTags((clients.find((c) => c.id === id)?.tags ?? []).join(', '));
+              // Смена клиента → введённые новые теги сбрасываются (чипы обновятся сами).
+              setTags('');
             }}
           />
           <div className={labelCls}>
             {tb('clientTags')}
-            <TagsField value={tags} onChange={setTags} />
+            {existingTags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {existingTags.map((tag) => (
+                  <span key={tag}
+                    className="inline-flex items-center rounded-full bg-subtle px-2.5 py-1 text-xs font-medium text-muted">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+            <TagsField value={tags} onChange={setTags} excludeFromPresets={existingTags} />
           </div>
           <label className={labelCls}>
             {tb('date')}

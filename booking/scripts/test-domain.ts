@@ -2,6 +2,7 @@
 import {durationHours, isWeekend, intervalsOverlap, fromAlmaty} from '../lib/time';
 import {computePrice, type PricingResource} from '../lib/pricing';
 import {formatPhoneDraft, normalizePhone} from '../lib/phone';
+import {mergeTags} from '../lib/tags';
 
 let failed = 0;
 function check(name: string, cond: boolean, got?: unknown) {
@@ -72,6 +73,22 @@ check('normalize: 8701… → +7701…', normalizePhone('8 701 123 45 67') === '
 check('normalize: 10 цифр → +7…', normalizePhone('701 123 45 67') === '+77011234567');
 check('normalize: +996 как есть', normalizePhone('+996 700 123 456') === '+996700123456');
 check('normalize: +81 (Япония) не превращается в +71', normalizePhone('+81 90 1234 5678') === '+819012345678', normalizePhone('+81 90 1234 5678'));
+
+console.log('tags.ts (теги брони добавляются к тегам клиента, не заменяют)');
+check('новый тег сохраняет существующие: инста + VIP',
+  JSON.stringify(mergeTags(['инста'], ['VIP'])) === JSON.stringify(['инста', 'VIP']),
+  mergeTags(['инста'], ['VIP']));
+check('дубликат без учёта регистра: VIP + vip → VIP',
+  JSON.stringify(mergeTags(['VIP'], ['vip'])) === JSON.stringify(['VIP']),
+  mergeTags(['VIP'], ['vip']));
+check('точный дубликат не двоится',
+  JSON.stringify(mergeTags(['инста', 'VIP'], ['VIP', 'Сегмент A'])) ===
+    JSON.stringify(['инста', 'VIP', 'Сегмент A']),
+  mergeTags(['инста', 'VIP'], ['VIP', 'Сегмент A']));
+check('пустой incoming → существующие без изменений',
+  JSON.stringify(mergeTags(['инста'], [])) === JSON.stringify(['инста']));
+check('пустой existing → только новые',
+  JSON.stringify(mergeTags([], ['VIP'])) === JSON.stringify(['VIP']));
 
 console.log(failed === 0 ? '\nВСЕ ТЕСТЫ ПРОЙДЕНЫ ✅' : `\n${failed} ТЕСТ(ОВ) УПАЛО ❌`);
 process.exit(failed === 0 ? 0 : 1);
