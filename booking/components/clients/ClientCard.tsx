@@ -4,6 +4,7 @@ import {useEffect, useState} from 'react';
 import {useLocale, useTranslations} from 'next-intl';
 import {Link, useRouter} from '@/i18n/navigation';
 import {removeClient, saveClientNote} from '@/lib/actions';
+import {sourceChip, tagChip} from '@/lib/ui';
 import {formatBirthday} from '@/lib/birthdays';
 import type {MockClient, MockBooking, MockResource} from '@/lib/types';
 import {TIMEZONE} from '@/lib/time';
@@ -74,14 +75,12 @@ export default function ClientCard({
             <div className="mt-1 text-sm text-muted">🎂 {formatBirthday(client.dateOfBirth, locale)}</div>
           )}
           <div className="mt-2 flex flex-wrap gap-1">
-            {/* Источник — откуда пришёл клиент (заполняется первой бронью) */}
+            {/* Источник — синий чип; теги — фиолетовые, VIP — янтарный */}
             {client.source && (
-              <span title={t('source')} className="rounded bg-sky-50 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 ring-1 ring-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:ring-sky-900">
-                {tsrc(client.source)}
-              </span>
+              <span title={t('source')} className={sourceChip}>{tsrc(client.source)}</span>
             )}
             {(client.tags ?? []).map((tag) => (
-              <span key={tag} className="rounded bg-subtle px-1.5 py-0.5 text-[10px] text-muted ring-1 ring-border">{tag}</span>
+              <span key={tag} className={tagChip(tag)}>{tag}</span>
             ))}
           </div>
         </div>

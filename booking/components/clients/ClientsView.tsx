@@ -2,6 +2,7 @@
 
 import {useMemo, useState} from 'react';
 import {useTranslations} from 'next-intl';
+import {sourceChip, tagChip} from '@/lib/ui';
 import {Link, useRouter} from '@/i18n/navigation';
 import type {MockClient} from '@/lib/types';
 import ClientDialog from './ClientDialog';
@@ -80,14 +81,12 @@ export default function ClientsView({
                     <td className="px-4 py-2 text-muted">{c.phone}</td>
                     <td className="px-4 py-2">
                       <div className="flex flex-wrap gap-1">
-                        {/* Источник — голубым чипом перед тегами (как на карточке клиента) */}
+                        {/* Источник — синий чип; теги — фиолетовые, VIP — янтарный */}
                         {c.source && (
-                          <span title={t('source')} className="rounded bg-sky-50 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 ring-1 ring-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:ring-sky-900">
-                            {tsrc(c.source)}
-                          </span>
+                          <span title={t('source')} className={sourceChip}>{tsrc(c.source)}</span>
                         )}
                         {(c.tags ?? []).map((tag) => (
-                          <span key={tag} className="rounded bg-subtle px-1.5 py-0.5 text-[10px] text-muted ring-1 ring-border">{tag}</span>
+                          <span key={tag} className={tagChip(tag)}>{tag}</span>
                         ))}
                       </div>
                     </td>
