@@ -4,7 +4,8 @@ import {useEffect, useMemo, useState} from 'react';
 import {useLocale, useTranslations} from 'next-intl';
 import {useRouter} from '@/i18n/navigation';
 import {TIMEZONE} from '@/lib/time';
-import {almatyDayStart, addDays, weekStart, fmtDayHeader, fmtDayNum, toLocalInput, fromLocalInput} from '@/lib/calendar';
+import {almatyDayStart, addDays, weekStart, fmtDayHeader, fmtDayNum, toLocalInput} from '@/lib/calendar';
+import DatePickerPopup from './DatePickerPopup';
 import type {MockResource, MockAddon, MockClient, MockBooking} from '@/lib/types';
 import {BOOKING_STATUSES} from '@/lib/enums';
 import ResourceTimeline from './ResourceTimeline';
@@ -84,24 +85,13 @@ export default function CalendarView({
           <h1 className="text-base font-semibold tracking-tight">{t('title')}</h1>
         </div>
         <div className="flex items-center gap-2">
-          <button className={btn} onClick={() => setViewDate(almatyDayStart(new Date()))}>{t('today')}</button>
+          {/* Полноценный календарик вместо кнопки «Сегодня» («Сегодня» — внутри попапа) */}
+          <DatePickerPopup value={viewDate} onPick={setViewDate} />
           <div className="flex items-center">
             <button className={`${btn} rounded-r-none`} onClick={() => setViewDate(addDays(viewDate, -step))}>‹</button>
             <button className={`${btn} rounded-l-none border-l-0`} onClick={() => setViewDate(addDays(viewDate, step))}>›</button>
           </div>
-          {/* Подпись даты кликабельна: поверх лежит невидимый нативный date-input —
-              клик открывает системный календарик для прыжка на любой день. */}
-          <label className="relative inline-flex min-w-40 cursor-pointer items-center gap-1 rounded-md px-1 py-0.5 text-sm font-medium capitalize hover:bg-subtle" title={t('pickDate')}>
-            {label}
-            <span aria-hidden className="text-[10px] text-muted">▾</span>
-            <input
-              type="date"
-              value={toLocalInput(viewDate).slice(0, 10)}
-              onChange={(e) => e.target.value && setViewDate(fromLocalInput(`${e.target.value}T12:00`))}
-              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-              aria-label={t('pickDate')}
-            />
-          </label>
+          <span className="min-w-40 text-sm font-medium capitalize">{label}</span>
           <div className="inline-flex rounded-md border border-border p-0.5 text-sm">
             <button
               className={`rounded px-3 py-1 font-medium ${mode === 'day' ? 'bg-primary text-primary-foreground' : 'text-muted hover:text-foreground'}`}
