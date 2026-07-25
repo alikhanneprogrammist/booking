@@ -53,7 +53,14 @@ export default function PrepaymentsView({
 
   const name = (r?: MockResource) => (r ? (locale === 'kk' ? r.nameKk : r.nameRu) : '—');
 
-  // Объединяем ручные предоплаты (брони) и архив, сортируем по дате оплаты.
+  // Сортировка по клику на заголовок: тот же столбец — переворот направления.
+  // По умолчанию — по дате оплаты, НОВЫЕ СВЕРХУ (пожелание Алихана).
+  type SortKey = 'amount' | 'method' | 'guest' | 'resource' | 'paidAt' | 'visitAt' | 'note' | 'manager';
+  const [sort, setSort] = useState<{key: SortKey; dir: 1 | -1}>({key: 'paidAt', dir: -1});
+  const toggleSort = (key: SortKey) =>
+    setSort((s) => ({key, dir: s.key === key ? ((s.dir * -1) as 1 | -1) : 1}));
+
+  // Объединяем ручные предоплаты (брони) и архив, сортируем по выбранной колонке.
   const rows = useMemo<JournalRow[]>(() => {
     const fromBookings = bookings.map<JournalRow>((b) => ({
       id: b.id,
@@ -80,11 +87,28 @@ export default function PrepaymentsView({
       manager: a.manager,
       isArchive: true,
     }));
-    return [...fromBookings, ...fromArchive].sort(
-      (a, b) => (a.paidAt?.getTime() ?? 0) - (b.paidAt?.getTime() ?? 0),
-    );
+    const val = (r: JournalRow): string | number => {
+      switch (sort.key) {
+        case 'amount': return r.amount;
+        case 'method': return r.method ? tpm(r.method) : '';
+        case 'guest': return r.guest;
+        case 'resource': return r.resourceLabel;
+        case 'paidAt': return r.paidAt?.getTime() ?? 0;
+        case 'visitAt': return r.visitAt.getTime();
+        case 'note': return r.note ?? '';
+        case 'manager': return r.manager ?? '';
+      }
+    };
+    return [...fromBookings, ...fromArchive].sort((a, b) => {
+      const va = val(a);
+      const vb = val(b);
+      const cmp = typeof va === 'number' && typeof vb === 'number'
+        ? va - vb
+        : String(va).localeCompare(String(vb), locale === 'kk' ? 'kk' : 'ru');
+      return cmp * sort.dir;
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bookings, archive, clientById, resById, userById, locale]);
+  }, [bookings, archive, clientById, resById, userById, locale, sort]);
 
   const totalSum = rows.reduce((s, r) => s + r.amount, 0);
 
@@ -207,14 +231,28 @@ export default function PrepaymentsView({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
-                <th className="px-3 py-2">{t('amount')}</th>
-                <th className="px-3 py-2">{t('type')}</th>
-                <th className="px-3 py-2">{t('guest')}</th>
-                <th className="px-3 py-2">{t('resource')}</th>
-                <th className="px-3 py-2">{t('paidDate')}</th>
-                <th className="px-3 py-2">{t('visitDate')}</th>
-                <th className="px-3 py-2">{t('note')}</th>
-                <th className="px-3 py-2">{t('manager')}</th>
+                {([
+                  ['amount', t('amount')],
+                  ['method', t('type')],
+                  ['guest', t('guest')],
+                  ['resource', t('resource')],
+                  ['paidAt', t('paidDate')],
+                  ['visitAt', t('visitDate')],
+                  ['note', t('note')],
+                  ['manager', t('manager')],
+                ] as const).map(([key, label]) => (
+                  <th key={key} className="px-3 py-2">
+                    <button
+                      onClick={() => toggleSort(key)}
+                      className={`inline-flex items-center gap-0.5 uppercase tracking-wide hover:text-foreground ${
+                        sort.key === key ? 'text-foreground' : ''
+                      }`}
+                    >
+                      {label}
+                      <span className="w-3 text-[10px]">{sort.key === key ? (sort.dir === 1 ? '↑' : '↓') : ''}</span>
+                    </button>
+                  </th>
+                ))}
                 {isAdmin && <th className="w-8 px-2 py-2" />}
               </tr>
             </thead>
