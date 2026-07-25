@@ -11,6 +11,7 @@ import {
   createBooking, updateBooking, cancelBooking, BookingError, type BookingInput,
 } from './bookings';
 import {toClient, toResource, toAddon, toUser} from './queries';
+import {BOOKING_SOURCES} from './enums';
 import type {MockResource, MockAddon} from './types';
 import {SETTINGS_ID, type AppSettings} from './settings';
 
@@ -84,12 +85,14 @@ export async function importClients(rows: ImportClientInput[]) {
 }
 
 export async function saveClient(input: {
-  id?: string; name: string; phone: string; note?: string; tags?: string[]; dateOfBirth?: Date;
+  id?: string; name: string; phone: string; note?: string; tags?: string[];
+  source?: string | null; dateOfBirth?: Date;
 }) {
   if (!(await currentUser())) return {ok: false as const, error: 'FORBIDDEN' as const};
   const phone = normalizePhone(input.phone);
   const data = {
     name: input.name, phone, note: input.note ?? null, tags: input.tags ?? [],
+    source: BOOKING_SOURCES.find((s) => s === input.source) ?? null,
     dateOfBirth: input.dateOfBirth ?? null,
   };
   try {

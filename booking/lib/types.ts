@@ -47,6 +47,7 @@ export interface MockClient {
   phone: string;
   note?: string;
   tags?: string[];
+  source?: BookingSource; // откуда пришёл (заполняется первой бронью)
   dateOfBirth?: Date; // день рождения (календарная дата, UTC-полночь)
 }
 

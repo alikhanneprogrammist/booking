@@ -241,6 +241,11 @@ export default function BookingDialog({
               setClientId(id);
               // Смена клиента → введённые новые теги сбрасываются (чипы обновятся сами).
               setTags('');
+              // Новая бронь: источник подставляется из карточки клиента (если задан).
+              if (!init) {
+                const src = clients.find((c) => c.id === id)?.source;
+                if (src) setSource(src);
+              }
             }}
           />
           <div className={labelCls}>

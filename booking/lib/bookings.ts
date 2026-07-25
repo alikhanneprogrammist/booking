@@ -264,6 +264,11 @@ export async function createBooking(raw: BookingInput, createdById: string) {
           data: {tags: mergeTags(client?.tags ?? [], data.clientTags)},
         });
       }
+      // Источник клиента: заполняется первой бронью и дальше не перезаписывается.
+      await tx.client.updateMany({
+        where: {id: data.clientId, source: null},
+        data: {source: data.source},
+      });
       return b;
     });
     return {booking, price};
@@ -412,6 +417,14 @@ export async function updateBooking(id: string, rawInput: Partial<BookingInput>,
         await tx.client.update({
           where: {id: clientId},
           data: {tags: mergeTags(client?.tags ?? [], raw.clientTags)},
+        });
+      }
+      // Источник клиента: если ещё пуст — заполняем источником брони (после патча).
+      const srcAfterPatch = raw.source ?? existing.source;
+      if (srcAfterPatch) {
+        await tx.client.updateMany({
+          where: {id: raw.clientId ?? existing.clientId, source: null},
+          data: {source: srcAfterPatch},
         });
       }
       return updated;

@@ -21,6 +21,7 @@ export default function ClientCard({
 }) {
   const t = useTranslations('clients');
   const tt = useTranslations('tariff');
+  const tsrc = useTranslations('source');
   const locale = useLocale();
   const router = useRouter();
   const [edit, setEdit] = useState(false);
@@ -73,6 +74,12 @@ export default function ClientCard({
             <div className="mt-1 text-sm text-muted">🎂 {formatBirthday(client.dateOfBirth, locale)}</div>
           )}
           <div className="mt-2 flex flex-wrap gap-1">
+            {/* Источник — откуда пришёл клиент (заполняется первой бронью) */}
+            {client.source && (
+              <span title={t('source')} className="rounded bg-sky-50 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 ring-1 ring-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:ring-sky-900">
+                {tsrc(client.source)}
+              </span>
+            )}
             {(client.tags ?? []).map((tag) => (
               <span key={tag} className="rounded bg-subtle px-1.5 py-0.5 text-[10px] text-muted ring-1 ring-border">{tag}</span>
             ))}

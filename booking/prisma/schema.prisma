@@ -151,13 +151,14 @@ model ServiceAddon {
 // ───────────────────────── Client — клиент (§5.4) ──────────────────────
 
 model Client {
-  id          String    @id @default(cuid())
+  id          String         @id @default(cuid())
   name        String
-  phone       String    @unique
+  phone       String         @unique
   note        String?
-  tags        String[]  @default([])
-  dateOfBirth DateTime? @db.Date // день рождения (только дата, без времени)
-  createdAt   DateTime  @default(now())
+  tags        String[]       @default([])
+  source      BookingSource? // откуда пришёл: заполняется первой бронью, бронь не перезаписывает
+  dateOfBirth DateTime?      @db.Date // день рождения (только дата, без времени)
+  createdAt   DateTime       @default(now())
 
   bookings Booking[]
 }

@@ -5,7 +5,8 @@ import {useTranslations} from 'next-intl';
 import {saveClient} from '@/lib/actions';
 import {toInputValue, parseInputDate} from '@/lib/birthdays';
 import {formatPhoneDraft} from '@/lib/phone';
-import type {MockClient} from '@/lib/types';
+import {BOOKING_SOURCES} from '@/lib/enums';
+import type {BookingSource, MockClient} from '@/lib/types';
 import {dialogField, dialogLabel} from '@/lib/ui';
 import TagsField from './TagsField';
 
@@ -18,7 +19,9 @@ export default function ClientDialog({
   onSaved?: (c: MockClient) => void;
 }) {
   const t = useTranslations('clients');
+  const tsrc = useTranslations('source');
   const [name, setName] = useState(client?.name ?? '');
+  const [source, setSource] = useState<BookingSource | ''>(client?.source ?? '');
   const [phone, setPhone] = useState(formatPhoneDraft(client?.phone ?? ''));
   const [note, setNote] = useState(client?.note ?? '');
   const [tags, setTags] = useState((client?.tags ?? []).join(', '));
@@ -35,6 +38,7 @@ export default function ClientDialog({
       phone: phone.trim(),
       note: note.trim() || undefined,
       tags: tags.split(',').map((s) => s.trim()).filter(Boolean),
+      source: source || null,
       dateOfBirth: dob ? parseInputDate(dob) : undefined,
     });
     setSaving(false);
@@ -73,6 +77,13 @@ export default function ClientDialog({
             {t('tags')}
             <TagsField value={tags} onChange={setTags} />
           </div>
+          <label className={label}>
+            {t('source')}
+            <select className={field} value={source} onChange={(e) => setSource(e.target.value as BookingSource | '')}>
+              <option value="">—</option>
+              {BOOKING_SOURCES.map((s) => <option key={s} value={s}>{tsrc(s)}</option>)}
+            </select>
+          </label>
           <label className={label}>
             {t('dateOfBirth')}
             <input type="date" className={field} value={dob} onChange={(e) => setDob(e.target.value)} />
