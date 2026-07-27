@@ -566,24 +566,23 @@ export async function updateDeliveryOrder(id: string, input: DeliveryOrderInput)
 }
 
 /**
- * Сводка доставки по районам за всё время (для отчёта-теплокарты) —
- * доступно всем сотрудникам. null-район вернётся отдельной строкой.
+ * Все заказы доставки для отчёта-теплокарты по районам (листы по месяцам,
+ * как эксель «Тепловая карта») — доступно всем сотрудникам.
  */
 export async function deliveryDistrictReport() {
   const user = await currentUser();
   if (!user) return {ok: false as const, error: 'FORBIDDEN' as const};
-  const rows = await prisma.deliveryOrder.groupBy({
-    by: ['district'],
-    _count: {_all: true},
-    _sum: {amount: true, courierCost: true},
+  const rows = await prisma.deliveryOrder.findMany({
+    select: {date: true, address: true, district: true, amount: true},
+    orderBy: {date: 'asc'},
   });
   return {
     ok: true as const,
-    rows: rows.map((r) => ({
+    orders: rows.map((r) => ({
+      date: r.date,
+      address: r.address,
       district: r.district,
-      count: r._count._all,
-      amount: r._sum.amount ?? 0,
-      courier: r._sum.courierCost ?? 0,
+      amount: r.amount,
     })),
   };
 }

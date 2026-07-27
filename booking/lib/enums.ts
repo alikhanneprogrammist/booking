@@ -28,6 +28,6 @@ export type Role = (typeof ROLES)[number];
 
 // Районы города для журнала доставки (значения — данные, админка ru-only).
 export const DELIVERY_DISTRICTS = [
-  'Алматинский', 'Байконурский', 'Есильский', 'Нуринский', 'Сарыаркинский',
+  'Алматинский', 'Байконурский', 'Есильский', 'Нуринский', 'Сарыаркинский', 'Сарайшык',
 ] as const;
 export type DeliveryDistrict = (typeof DELIVERY_DISTRICTS)[number];

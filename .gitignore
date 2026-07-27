@@ -15,8 +15,10 @@
 # Рабочие файлы бухгалтерии с данными клиентов (импортируются скриптом, в репо не хранятся)
 *.xlsx
 
-# Исключение: эксель доставки — нужен на проде для booking/scripts/import-delivery.ts
+# Исключение: эксели доставки — нужны на проде для scripts/import-delivery.ts
+# и scripts/backfill-districts.ts
 !Еженедельны*.xlsx
+!Тепловая*.xlsx
 
 # «Асату» — отдельный git-репозиторий (github.com/alikhanneprogrammist/asatu)
 asatu/

@@ -99,51 +99,66 @@ export default function DeliveryView({
     XLSX.writeFile(wb, `${t('fileName')}-${weekLabel.replaceAll(' ', '').replaceAll('–', '-')}.xlsx`);
   }
 
-  // Отчёт-теплокарта по районам: лист текущей недели + лист за всё время.
-  // «Тепловая шкала» — полоса из █ по доле района в сумме (стили ячеек xlsx не умеет).
+  // Отчёт-теплокарта по районам — формат эксель-примера «Тепловая карта»:
+  // лист на месяц; слева адреса с районами, справа сводка Район | Кол-во | % (+Сумма).
   async function downloadDistrictReport() {
     const res = await deliveryDistrictReport();
     if (!res.ok) return;
 
     const XLSX = await import('xlsx');
-    const header = [t('district'), t('ordersCount'), t('amount'), t('courierCost'), t('share'), t('heatScale')];
-    const buildSheet = (rows: Array<{district: string | null; count: number; amount: number; courier: number}>) => {
-      const total = Math.max(1, rows.reduce((s, r) => s + r.amount, 0));
-      // Все районы из списка (даже пустые) + «не указан», сортировка по сумме.
-      const full = [
-        ...DELIVERY_DISTRICTS.map((d) => rows.find((r) => r.district === d) ?? {district: d, count: 0, amount: 0, courier: 0}),
-        ...rows.filter((r) => !r.district || !DELIVERY_DISTRICTS.some((d) => d === r.district)),
-      ].sort((a, b) => b.amount - a.amount);
-      const ws = XLSX.utils.aoa_to_sheet([
-        header,
-        ...full.map((r) => [
-          r.district || t('noDistrict'),
-          r.count,
-          Math.round(r.amount),
-          Math.round(r.courier),
-          `${Math.round((r.amount / total) * 100)}%`,
-          '█'.repeat(Math.round((r.amount / total) * 20)),
-        ]),
-      ]);
-      ws['!cols'] = [{wch: 16}, {wch: 10}, {wch: 14}, {wch: 14}, {wch: 8}, {wch: 22}];
-      return ws;
-    };
 
-    // Лист недели — из уже загруженных заказов текущей недели.
-    const weekAgg = new Map<string | null, {district: string | null; count: number; amount: number; courier: number}>();
-    for (const o of orders) {
-      const key = o.district ?? null;
-      const cur = weekAgg.get(key) ?? {district: key, count: 0, amount: 0, courier: 0};
-      cur.count += 1;
-      cur.amount += o.amount;
-      cur.courier += o.courierCost ?? 0;
-      weekAgg.set(key, cur);
+    // Группировка по месяцам Алматы (свежие первыми).
+    const byMonth = new Map<string, typeof res.orders>();
+    for (const o of res.orders) {
+      const w = toAlmaty(new Date(o.date));
+      const key = `${w.getFullYear()}-${String(w.getMonth() + 1).padStart(2, '0')}`;
+      byMonth.set(key, [...(byMonth.get(key) ?? []), o]);
     }
+    const monthKeys = Array.from(byMonth.keys()).sort().reverse();
 
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, buildSheet(Array.from(weekAgg.values())), weekLabel.replaceAll('–', '-'));
-    XLSX.utils.book_append_sheet(wb, buildSheet(res.rows), t('allTime'));
-    XLSX.writeFile(wb, `${t('reportFileName')}-${weekLabel.replaceAll(' ', '').replaceAll('–', '-')}.xlsx`);
+    for (const key of monthKeys) {
+      const monthOrders = byMonth.get(key)!;
+      // Сводка по районам: полный список районов + «не указан», по убыванию кол-ва.
+      const agg = new Map<string, {count: number; amount: number}>();
+      for (const o of monthOrders) {
+        const d = o.district ?? t('noDistrict');
+        const cur = agg.get(d) ?? {count: 0, amount: 0};
+        cur.count += 1;
+        cur.amount += o.amount;
+        agg.set(d, cur);
+      }
+      const summary = [
+        ...DELIVERY_DISTRICTS.map((d) => ({district: d as string, ...(agg.get(d) ?? {count: 0, amount: 0})})),
+        ...(agg.has(t('noDistrict')) ? [{district: t('noDistrict'), ...agg.get(t('noDistrict'))!}] : []),
+      ].sort((a, b) => b.count - a.count);
+      const total = Math.max(1, monthOrders.length);
+
+      // Слева адреса, справа сводка — строка к строке (как в примере).
+      const rowsCount = Math.max(monthOrders.length, summary.length);
+      const aoa: unknown[][] = [
+        [t('address'), t('district'), '', t('district'), t('ordersCount'), t('share'), t('amount')],
+      ];
+      for (let i = 0; i < rowsCount; i++) {
+        const o = monthOrders[i];
+        const s = summary[i];
+        aoa.push([
+          o ? o.address || '—' : '',
+          o ? o.district || '—' : '',
+          '',
+          s ? s.district : '',
+          s ? s.count : '',
+          s ? `${Math.round((s.count / total) * 100)}%` : '',
+          s ? Math.round(s.amount) : '',
+        ]);
+      }
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws['!cols'] = [{wch: 26}, {wch: 14}, {wch: 3}, {wch: 14}, {wch: 8}, {wch: 8}, {wch: 12}];
+      const [y, m] = key.split('-').map(Number);
+      const label = new Date(y, m - 1, 1).toLocaleDateString(intl, {month: 'long', year: 'numeric'});
+      XLSX.utils.book_append_sheet(wb, ws, label);
+    }
+    XLSX.writeFile(wb, `${t('reportFileName')}.xlsx`);
   }
 
   return (
