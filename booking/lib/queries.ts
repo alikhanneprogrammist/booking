@@ -189,6 +189,7 @@ export async function getDeliveryOrdersBetween(from: Date, to: Date): Promise<De
     amount: r.amount,
     courierCost: r.courierCost ?? undefined,
     address: r.address ?? undefined,
+    district: r.district ?? undefined,
     phone: r.phone ?? undefined,
     promo: r.promo ?? undefined,
     note: r.note ?? undefined,

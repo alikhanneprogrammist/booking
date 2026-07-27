@@ -25,3 +25,9 @@ export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
 export const ROLES = ['ADMIN', 'MANAGER'] as const;
 export type Role = (typeof ROLES)[number];
+
+// Районы города для журнала доставки (значения — данные, админка ru-only).
+export const DELIVERY_DISTRICTS = [
+  'Алматинский', 'Байконурский', 'Есильский', 'Нуринский', 'Сарыаркинский',
+] as const;
+export type DeliveryDistrict = (typeof DELIVERY_DISTRICTS)[number];

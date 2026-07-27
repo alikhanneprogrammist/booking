@@ -4,6 +4,7 @@ import {useState} from 'react';
 import {useTranslations} from 'next-intl';
 import {useRouter} from '@/i18n/navigation';
 import {addDeliveryOrder, updateDeliveryOrder} from '@/lib/actions';
+import {DELIVERY_DISTRICTS} from '@/lib/enums';
 import {formatPhoneDraft} from '@/lib/phone';
 import {dialogField, dialogLabel} from '@/lib/ui';
 import {toAlmaty} from '@/lib/time';
@@ -35,6 +36,7 @@ export default function DeliveryOrderDialog({
   const [amount, setAmount] = useState(order ? String(order.amount) : '');
   const [courierCost, setCourierCost] = useState(order?.courierCost != null ? String(order.courierCost) : '');
   const [address, setAddress] = useState(order?.address ?? '');
+  const [district, setDistrict] = useState(order?.district ?? '');
   const [phone, setPhone] = useState(order?.phone ?? '');
   const [promo, setPromo] = useState(order?.promo ?? '');
   const [note, setNote] = useState(order?.note ?? '');
@@ -56,6 +58,7 @@ export default function DeliveryOrderDialog({
         amount: sum,
         courierCost: courier,
         address: address.trim() || undefined,
+        district: district || null,
         phone: phone.trim() || undefined,
         promo: promo.trim() || undefined,
         note: note.trim() || undefined,
@@ -106,6 +109,14 @@ export default function DeliveryOrderDialog({
           {t('address')}
           <input className={dialogField} value={address} placeholder={t('addressHint')}
             onChange={(e) => setAddress(e.target.value)} />
+        </label>
+
+        <label className={`${dialogLabel} mt-3`}>
+          {t('district')}
+          <select className={dialogField} value={district} onChange={(e) => setDistrict(e.target.value)}>
+            <option value="">—</option>
+            {DELIVERY_DISTRICTS.map((d) => <option key={d} value={d}>{d}</option>)}
+          </select>
         </label>
 
         <div className="mt-3 grid grid-cols-2 gap-3">

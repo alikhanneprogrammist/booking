@@ -11,7 +11,7 @@ import {
   createBooking, updateBooking, cancelBooking, BookingError, type BookingInput,
 } from './bookings';
 import {toClient, toResource, toAddon, toUser} from './queries';
-import {BOOKING_SOURCES} from './enums';
+import {BOOKING_SOURCES, DELIVERY_DISTRICTS} from './enums';
 import type {MockResource, MockAddon} from './types';
 import {SETTINGS_ID, type AppSettings} from './settings';
 
@@ -502,6 +502,7 @@ export interface DeliveryOrderInput {
   amount: number;
   courierCost?: number | null;
   address?: string;
+  district?: string | null;
   phone?: string;
   promo?: string;
   note?: string;
@@ -526,6 +527,7 @@ function parseDeliveryInput(input: DeliveryOrderInput) {
     amount,
     courierCost,
     address: (input.address ?? '').trim() || null,
+    district: DELIVERY_DISTRICTS.find((d) => d === input.district) ?? null,
     phone: (input.phone ?? '').trim() || null,
     promo: (input.promo ?? '').trim() || null,
     note: (input.note ?? '').trim() || null,
@@ -561,6 +563,29 @@ export async function updateDeliveryOrder(id: string, input: DeliveryOrderInput)
   await prisma.deliveryOrder.update({where: {id}, data}); // manager не трогаем — остаётся автор
   refresh();
   return {ok: true as const};
+}
+
+/**
+ * Сводка доставки по районам за всё время (для отчёта-теплокарты) —
+ * доступно всем сотрудникам. null-район вернётся отдельной строкой.
+ */
+export async function deliveryDistrictReport() {
+  const user = await currentUser();
+  if (!user) return {ok: false as const, error: 'FORBIDDEN' as const};
+  const rows = await prisma.deliveryOrder.groupBy({
+    by: ['district'],
+    _count: {_all: true},
+    _sum: {amount: true, courierCost: true},
+  });
+  return {
+    ok: true as const,
+    rows: rows.map((r) => ({
+      district: r.district,
+      count: r._count._all,
+      amount: r._sum.amount ?? 0,
+      courier: r._sum.courierCost ?? 0,
+    })),
+  };
 }
 
 /** Удаление ошибочной строки журнала доставки — только ADMIN. */

@@ -5,7 +5,8 @@ import {useLocale, useTranslations} from 'next-intl';
 import {useRouter} from '@/i18n/navigation';
 import {toAlmaty} from '@/lib/time';
 import {addDays} from '@/lib/calendar';
-import {removeDeliveryOrder} from '@/lib/actions';
+import {removeDeliveryOrder, deliveryDistrictReport} from '@/lib/actions';
+import {DELIVERY_DISTRICTS} from '@/lib/enums';
 import DeliveryOrderDialog from './DeliveryOrderDialog';
 import type {DeliveryOrder} from '@/lib/types';
 
@@ -69,7 +70,7 @@ export default function DeliveryView({
     const XLSX = await import('xlsx');
     const header = [
       t('date'), t('weekday'), t('amount'), t('courierCost'),
-      t('address'), t('phone'), t('promo'), t('note'), t('manager'),
+      t('address'), t('district'), t('phone'), t('promo'), t('note'), t('manager'),
     ];
     const dataRows = orders.map((o) => [
       fmtDate(o.date),
@@ -77,6 +78,7 @@ export default function DeliveryView({
       Math.round(o.amount),
       o.courierCost != null ? Math.round(o.courierCost) : '—',
       o.address || '—',
+      o.district || '—',
       o.phone || '—',
       o.promo || '—',
       o.note || '—',
@@ -97,6 +99,53 @@ export default function DeliveryView({
     XLSX.writeFile(wb, `${t('fileName')}-${weekLabel.replaceAll(' ', '').replaceAll('–', '-')}.xlsx`);
   }
 
+  // Отчёт-теплокарта по районам: лист текущей недели + лист за всё время.
+  // «Тепловая шкала» — полоса из █ по доле района в сумме (стили ячеек xlsx не умеет).
+  async function downloadDistrictReport() {
+    const res = await deliveryDistrictReport();
+    if (!res.ok) return;
+
+    const XLSX = await import('xlsx');
+    const header = [t('district'), t('ordersCount'), t('amount'), t('courierCost'), t('share'), t('heatScale')];
+    const buildSheet = (rows: Array<{district: string | null; count: number; amount: number; courier: number}>) => {
+      const total = Math.max(1, rows.reduce((s, r) => s + r.amount, 0));
+      // Все районы из списка (даже пустые) + «не указан», сортировка по сумме.
+      const full = [
+        ...DELIVERY_DISTRICTS.map((d) => rows.find((r) => r.district === d) ?? {district: d, count: 0, amount: 0, courier: 0}),
+        ...rows.filter((r) => !r.district || !DELIVERY_DISTRICTS.some((d) => d === r.district)),
+      ].sort((a, b) => b.amount - a.amount);
+      const ws = XLSX.utils.aoa_to_sheet([
+        header,
+        ...full.map((r) => [
+          r.district || t('noDistrict'),
+          r.count,
+          Math.round(r.amount),
+          Math.round(r.courier),
+          `${Math.round((r.amount / total) * 100)}%`,
+          '█'.repeat(Math.round((r.amount / total) * 20)),
+        ]),
+      ]);
+      ws['!cols'] = [{wch: 16}, {wch: 10}, {wch: 14}, {wch: 14}, {wch: 8}, {wch: 22}];
+      return ws;
+    };
+
+    // Лист недели — из уже загруженных заказов текущей недели.
+    const weekAgg = new Map<string | null, {district: string | null; count: number; amount: number; courier: number}>();
+    for (const o of orders) {
+      const key = o.district ?? null;
+      const cur = weekAgg.get(key) ?? {district: key, count: 0, amount: 0, courier: 0};
+      cur.count += 1;
+      cur.amount += o.amount;
+      cur.courier += o.courierCost ?? 0;
+      weekAgg.set(key, cur);
+    }
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, buildSheet(Array.from(weekAgg.values())), weekLabel.replaceAll('–', '-'));
+    XLSX.utils.book_append_sheet(wb, buildSheet(res.rows), t('allTime'));
+    XLSX.writeFile(wb, `${t('reportFileName')}-${weekLabel.replaceAll(' ', '').replaceAll('–', '-')}.xlsx`);
+  }
+
   return (
     <div className="mx-auto max-w-6xl p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -110,6 +159,10 @@ export default function DeliveryView({
           <button onClick={downloadXlsx}
             className="ml-2 rounded-md border border-border px-2.5 py-1.5 text-sm hover:bg-subtle">
             ⬇ {t('download')}
+          </button>
+          <button onClick={downloadDistrictReport} title={t('districtReportHint')}
+            className="ml-1 rounded-md border border-border px-2.5 py-1.5 text-sm hover:bg-subtle">
+            🗺 {t('districtReport')}
           </button>
           <button onClick={() => setDialog({})}
             className="ml-1 rounded-md bg-primary px-2.5 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90">
@@ -148,6 +201,7 @@ export default function DeliveryView({
                 <th className="px-3 py-2">{t('amount')}</th>
                 <th className="px-3 py-2">{t('courierCost')}</th>
                 <th className="px-3 py-2">{t('address')}</th>
+                <th className="px-3 py-2">{t('district')}</th>
                 <th className="px-3 py-2">{t('phone')}</th>
                 <th className="px-3 py-2">{t('promo')}</th>
                 <th className="px-3 py-2">{t('note')}</th>
@@ -165,6 +219,7 @@ export default function DeliveryView({
                   <td className="whitespace-nowrap px-3 py-2 font-medium">{money(o.amount)}</td>
                   <td className="whitespace-nowrap px-3 py-2">{o.courierCost != null ? money(o.courierCost) : '—'}</td>
                   <td className="max-w-44 truncate px-3 py-2" title={o.address}>{o.address || '—'}</td>
+                  <td className="whitespace-nowrap px-3 py-2">{o.district || '—'}</td>
                   <td className="whitespace-nowrap px-3 py-2">{o.phone || '—'}</td>
                   <td className="max-w-36 truncate px-3 py-2" title={o.promo}>{o.promo || '—'}</td>
                   <td className="max-w-44 truncate px-3 py-2" title={o.note}>{o.note || '—'}</td>

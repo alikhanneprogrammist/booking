@@ -80,6 +80,7 @@ export interface DeliveryOrder {
   amount: number;
   courierCost?: number;
   address?: string;
+  district?: string; // район города (DELIVERY_DISTRICTS)
   phone?: string;
   promo?: string;
   note?: string;

@@ -240,6 +240,7 @@ model DeliveryOrder {
   amount      Int // сумма внутренней доставки
   courierCost Int? // затраты на курьера; null — не было
   address     String? // адрес или «самовывоз»
+  district    String? // район города (DELIVERY_DISTRICTS); null — не указан
   phone       String?
   promo       String? // акция («бесплатная доставка»…)
   note        String?
