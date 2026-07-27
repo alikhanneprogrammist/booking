@@ -4,7 +4,7 @@ import {useEffect, useMemo, useState} from 'react';
 import {useLocale, useTranslations} from 'next-intl';
 import {useRouter} from '@/i18n/navigation';
 import {TIMEZONE} from '@/lib/time';
-import {almatyDayStart, addDays, weekStart, fmtDayHeader, fmtDayNum, toLocalInput} from '@/lib/calendar';
+import {almatyDayStart, addDays, weekStart, fmtDayHeader, fmtDayNum, toLocalInput, shiftAnchor, shiftStart} from '@/lib/calendar';
 import DatePickerPopup from './DatePickerPopup';
 import type {MockResource, MockAddon, MockClient, MockBooking} from '@/lib/types';
 import {BOOKING_STATUSES} from '@/lib/enums';
@@ -48,11 +48,11 @@ export default function CalendarView({
     return () => clearInterval(id);
   }, []);
 
-  // Вкладка, открытая через полночь: если день не выбран явно (?d),
-  // при смене суток (Алматы) перечитываем сервер — календарь сам покажет новый день.
+  // Вкладка, открытая через границу смены (10:00): если день не выбран явно (?d),
+  // в 10 утра (Алматы) перечитываем сервер — календарь сам покажет новую смену.
   useEffect(() => {
     if (explicitDate) return;
-    if (almatyDayStart(now).getTime() !== viewDate.getTime()) router.refresh();
+    if (almatyDayStart(shiftStart(now)).getTime() !== viewDate.getTime()) router.refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [now, explicitDate, viewDate]);
 
@@ -85,8 +85,9 @@ export default function CalendarView({
           <h1 className="text-base font-semibold tracking-tight">{t('title')}</h1>
         </div>
         <div className="flex items-center gap-2">
-          {/* Полноценный календарик вместо кнопки «Сегодня» («Сегодня» — внутри попапа) */}
-          <DatePickerPopup value={viewDate} onPick={setViewDate} />
+          {/* Полноценный календарик вместо кнопки «Сегодня» («Сегодня» — внутри попапа).
+              shiftStart: «Сегодня» ночью (до 10:00) ведёт на вчерашнюю смену. */}
+          <DatePickerPopup value={viewDate} onPick={(d) => setViewDate(shiftStart(d))} />
           <div className="flex items-center">
             <button className={`${btn} rounded-r-none`} onClick={() => setViewDate(addDays(viewDate, -step))}>‹</button>
             <button className={`${btn} rounded-l-none border-l-0`} onClick={() => setViewDate(addDays(viewDate, step))}>›</button>
@@ -129,7 +130,7 @@ export default function CalendarView({
       <div className="min-h-0 flex-1">
         {mode === 'day' ? (
           <ResourceTimeline
-            dayStart={viewDate}
+            dayStart={shiftAnchor(viewDate)}
             resources={resources}
             bookings={bookings}
             clients={clients}
@@ -141,7 +142,7 @@ export default function CalendarView({
           />
         ) : (
           <WeekTimeline
-            weekStartDay={ws}
+            weekStartDay={shiftAnchor(ws)}
             resources={resources}
             bookings={bookings}
             clients={clients}

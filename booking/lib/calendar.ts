@@ -18,6 +18,28 @@ export function addDays(instant: Date, n: number): Date {
   );
 }
 
+// ─────────────── Смена: операционные сутки заведения 10:00 → 10:00 ─────────
+
+/** Час начала смены (стеночное время Алматы). */
+export const SHIFT_START_HOUR = 10;
+
+/** Начало смены (10:00 Алматы) для дня, чья полночь = dayMidnight. */
+export function shiftAnchor(dayMidnight: Date): Date {
+  return new Date(dayMidnight.getTime() + SHIFT_START_HOUR * 3600_000);
+}
+
+/**
+ * Начало смены, в которую попадает instant: до 10:00 — смена ПРЕДЫДУЩЕГО дня
+ * (ночная бронь 02:00 принадлежит вчерашней смене), с 10:00 — текущего.
+ */
+export function shiftStart(instant: Date): Date {
+  const w = toAlmaty(instant);
+  const back = w.getHours() < SHIFT_START_HOUR ? -1 : 0;
+  return fromAlmaty(
+    new Date(w.getFullYear(), w.getMonth(), w.getDate() + back, SHIFT_START_HOUR, 0, 0, 0),
+  );
+}
+
 /** Понедельник недели, содержащей instant (00:00 Almaty). */
 export function weekStart(instant: Date): Date {
   const start = almatyDayStart(instant);

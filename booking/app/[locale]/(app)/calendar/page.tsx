@@ -1,7 +1,7 @@
 import {setRequestLocale} from 'next-intl/server';
 import CalendarView from '@/components/calendar/CalendarView';
 import {getResources, getAddons, getClients, getBookingsBetween, getSettings} from '@/lib/queries';
-import {almatyDayStart, weekStart, addDays, fromLocalInput} from '@/lib/calendar';
+import {almatyDayStart, weekStart, addDays, fromLocalInput, shiftStart} from '@/lib/calendar';
 
 // Живые данные из БД на каждый запрос (и без обращения к БД на этапе сборки).
 export const dynamic = 'force-dynamic';
@@ -17,10 +17,11 @@ export default async function CalendarPage({
   setRequestLocale(locale);
 
   // Просматриваемый день из URL (?d=YYYY-MM-DD, стеночная дата Алматы); мусор → сегодня.
+  // Без ?d — дата ТЕКУЩЕЙ СМЕНЫ (10:00→10:00): ночью до 10 утра это вчерашний день.
   const {d} = await searchParams;
   const explicitDate = Boolean(d && /^\d{4}-\d{2}-\d{2}$/.test(d));
-  const parsed = explicitDate ? fromLocalInput(`${d}T00:00`) : new Date();
-  const viewDate = almatyDayStart(Number.isNaN(parsed.getTime()) ? new Date() : parsed);
+  const parsed = explicitDate ? fromLocalInput(`${d}T00:00`) : shiftStart(new Date());
+  const viewDate = almatyDayStart(Number.isNaN(parsed.getTime()) ? shiftStart(new Date()) : parsed);
 
   // Окно выборки: неделя просматриваемого дня + сутки запаса, чтобы покрыть
   // «хвосты» ночных броней и продлённую сетку дня (до +32 ч за последний день недели).

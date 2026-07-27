@@ -1,6 +1,6 @@
 'use client';
 
-import {HOUR_PX, HOURS, fmtHour, fmtWeekday, fmtDayNum, minutesFromDayStart, addDays} from '@/lib/calendar';
+import {HOUR_PX, HOURS, fmtHour, fmtWeekday, fmtDayNum, minutesFromDayStart, addDays, SHIFT_START_HOUR} from '@/lib/calendar';
 import type {MockResource, MockBooking, MockClient, MockAddon} from '@/lib/types';
 import BookingBlock from './BookingBlock';
 
@@ -71,9 +71,10 @@ export default function WeekTimeline({
 
       <div className="flex" style={{height: 24 * HOUR_PX}}>
           <div className="relative w-14 shrink-0">
-            {HOURS.map((h) => (
-              <div key={h} className="absolute right-1 -translate-y-1/2 text-[10px] text-muted" style={{top: h * HOUR_PX}}>
-                {fmtHour(h)}
+            {/* Ось часов смены: 10:00 … 23:00, 00:00 … 09:00 (строка i = час (i+10)%24) */}
+            {HOURS.map((h, i) => (
+              <div key={h} className="absolute right-1 -translate-y-1/2 text-[10px] text-muted" style={{top: i * HOUR_PX}}>
+                {fmtHour((h + SHIFT_START_HOUR) % 24)}
               </div>
             ))}
           </div>

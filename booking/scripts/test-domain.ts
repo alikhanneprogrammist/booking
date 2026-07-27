@@ -3,6 +3,7 @@ import {durationHours, isWeekend, intervalsOverlap, fromAlmaty} from '../lib/tim
 import {computePrice, type PricingResource} from '../lib/pricing';
 import {formatPhoneDraft, normalizePhone} from '../lib/phone';
 import {mergeTags} from '../lib/tags';
+import {shiftStart, shiftAnchor} from '../lib/calendar';
 
 let failed = 0;
 function check(name: string, cond: boolean, got?: unknown) {
@@ -55,6 +56,22 @@ check('сутки + кальян + СПА → 335 000', withAddons.total === 335
 
 const overCap = computePrice(vip7, 'FULL_DAY', D('2026-06-22T14:00:00Z'), D('2026-06-23T14:00:00Z'), [], 30);
 check('гости сверх вместимости → предупреждение, не блок', overCap.warnings.length === 1, overCap.warnings);
+
+console.log('calendar.ts (смена 10:00→10:00)');
+{
+  const at = (y: number, mo: number, d: number, h: number) => fromAlmaty(new Date(y, mo - 1, d, h, 0));
+  check('03:00 27.07 → смена 26.07 10:00',
+    shiftStart(at(2026, 7, 27, 3)).getTime() === at(2026, 7, 26, 10).getTime(),
+    shiftStart(at(2026, 7, 27, 3)).toISOString());
+  check('12:00 27.07 → смена 27.07 10:00',
+    shiftStart(at(2026, 7, 27, 12)).getTime() === at(2026, 7, 27, 10).getTime());
+  check('ровно 10:00 → своя смена',
+    shiftStart(at(2026, 7, 27, 10)).getTime() === at(2026, 7, 27, 10).getTime());
+  check('09:59 → вчерашняя смена',
+    shiftStart(at(2026, 7, 27, 9)).getTime() === at(2026, 7, 26, 10).getTime());
+  check('shiftAnchor: полночь + 10ч',
+    shiftAnchor(at(2026, 7, 27, 0)).getTime() === at(2026, 7, 27, 10).getTime());
+}
 
 console.log('phone.ts (статичный +7 и иностранные номера)');
 check('пусто → +7', formatPhoneDraft('') === '+7', formatPhoneDraft(''));

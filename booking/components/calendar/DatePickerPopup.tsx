@@ -3,6 +3,7 @@
 import {useState} from 'react';
 import {useLocale, useTranslations} from 'next-intl';
 import {toAlmaty, fromAlmaty} from '@/lib/time';
+import {shiftStart} from '@/lib/calendar';
 
 /**
  * Полноценный всплывающий календарь-месяц в шапке (замена кнопки «Сегодня»):
@@ -20,7 +21,8 @@ export default function DatePickerPopup({value, onPick}: {value: Date; onPick: (
   });
 
   const intl = locale === 'kk' ? 'kk-KZ' : 'ru-RU';
-  const today = toAlmaty(new Date());
+  // «Сегодня» — день ТЕКУЩЕЙ СМЕНЫ (10:00→10:00): ночью до 10 утра это вчерашняя дата.
+  const today = toAlmaty(shiftStart(new Date()));
   const sel = toAlmaty(value);
 
   const openPopup = () => {

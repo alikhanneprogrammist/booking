@@ -3,7 +3,7 @@
 import {useEffect, useRef} from 'react';
 import {useTranslations} from 'next-intl';
 import {
-  HOUR_PX, fmtHour, minutesFromDayStart, addDays,
+  HOUR_PX, fmtHour, minutesFromDayStart, addDays, SHIFT_START_HOUR,
 } from '@/lib/calendar';
 import type {MockResource, MockBooking, MockClient, MockAddon} from '@/lib/types';
 import BookingBlock from './BookingBlock';
@@ -28,8 +28,9 @@ export default function ResourceTimeline({
   const showNow = now >= dayStart && now < dayEnd;
   const nowTop = (minutesFromDayStart(now, dayStart) / 60) * HOUR_PX;
 
-  // Сетка строго 00:00–24:00: часть брони за полночь показывается в начале следующего дня.
-  const hours = Array.from({length: 24}, (_, i) => i);
+  // Сетка смены 10:00→10:00: i-я строка = стеночный час (i+10)%24; ночная часть
+  // брони показывается внизу ТОЙ ЖЕ смены, а не в начале следующего дня.
+  const hours = Array.from({length: 24}, (_, i) => (i + SHIFT_START_HOUR) % 24);
 
   // Рисуем всё видимое в сутках [dayStart, dayEnd), включая «хвосты» броней с прошлого дня.
   const dayBookings = bookings.filter((b) => b.startAt < dayEnd && b.endAt > dayStart);
@@ -47,12 +48,12 @@ export default function ResourceTimeline({
     onSlotClick(resourceId, new Date(dayStart.getTime() + snapped * 60000));
   }
 
-  // Авто-скролл при смене дня: к «сейчас» (если сегодня) или к 10:00 — чтобы не упираться в 00:00.
+  // Авто-скролл при смене дня: к «сейчас» (если сегодня) или к началу смены (10:00).
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    el.scrollTop = showNow ? Math.max(0, nowTop - 120) : 10 * HOUR_PX;
+    el.scrollTop = showNow ? Math.max(0, nowTop - 120) : 0;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dayStart]);
 
@@ -92,11 +93,11 @@ export default function ResourceTimeline({
       <div className="flex" style={{height: 24 * HOUR_PX}}>
           {/* Часовая шкала */}
           <div className="relative w-14 shrink-0">
-            {hours.map((h) => (
+            {hours.map((h, i) => (
               <div
                 key={h}
                 className="absolute right-1 -translate-y-1/2 text-[10px] text-muted"
-                style={{top: h * HOUR_PX}}
+                style={{top: i * HOUR_PX}}
               >
                 {fmtHour(h)}
               </div>
@@ -110,11 +111,11 @@ export default function ResourceTimeline({
               className="relative flex-1 cursor-pointer border-l border-border"
             >
               {/* Часовые линии */}
-              {hours.map((h) => (
+              {hours.map((h, i) => (
                 <div
                   key={h}
                   className="absolute left-0 right-0 border-t border-border/60"
-                  style={{top: h * HOUR_PX}}
+                  style={{top: i * HOUR_PX}}
                 />
               ))}
               {/* Линия «сейчас» */}
