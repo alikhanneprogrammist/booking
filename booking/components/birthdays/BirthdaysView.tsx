@@ -47,7 +47,10 @@ export default function BirthdaysView({
                 <span className="text-base leading-none">🎂</span>
                 <span className="flex-1 truncate font-medium">{c.name}</span>
                 <span className="hidden shrink-0 text-muted sm:block">
-                  {formatBirthday(c.dateOfBirth as Date, locale)} · {t('turns', {n: ageTurning(c.dateOfBirth as Date, today)})}
+                  {formatBirthday(c.dateOfBirth as Date, locale)}
+                  {/* Возраст ≤1 — год рождения неизвестен (дата дописана из брони «День рождения») */}
+                  {ageTurning(c.dateOfBirth as Date, today) > 1 &&
+                    ` · ${t('turns', {n: ageTurning(c.dateOfBirth as Date, today)})}`}
                 </span>
                 <span className={`w-24 shrink-0 text-right ${c.daysUntil === 0 ? 'font-medium text-primary' : 'text-muted'}`}>
                   {dayLabel(c.daysUntil)}

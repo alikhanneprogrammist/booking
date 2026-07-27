@@ -2,8 +2,15 @@
 
 import {dialogField} from '@/lib/ui';
 
-// Предустановленные теги-сегменты клиентов (теги — данные, админка ru-only).
-export const PRESET_TAGS = ['VIP', 'Сегмент A', 'Сегмент B', 'Сегмент C', 'Сегмент D', 'Суточные гости'];
+// Предустановленные виды мероприятий (значения — данные, админка ru-only).
+// Заменили прежние теги-сегменты; старые теги у клиентов остаются отображаться.
+export const EVENT_TYPES = [
+  'День рождения', 'Корпоратив', 'Юбилей', 'Девичник', 'Мальчишник',
+  'Деловая встреча', 'Семейный ужин', 'Другое',
+];
+
+/** Вид «День рождения» — триггер синхронизации даты рождения клиента из брони. */
+export const BIRTHDAY_EVENT = 'День рождения';
 
 export const tagList = (s: string) => s.split(',').map((x) => x.trim()).filter(Boolean);
 
@@ -14,10 +21,10 @@ export function toggleTag(s: string, tag: string): string {
 }
 
 /**
- * Редактор тегов клиента: выпадающий список предустановленных сегментов,
- * выбранные — чипы с ✕, произвольные теги — текстовым полем (через запятую).
+ * Редактор видов мероприятий клиента: выпадающий список предустановленных,
+ * выбранные — чипы с ✕, произвольные — текстовым полем (через запятую).
  * value — строка «через запятую» (state вызывающего).
- * excludeFromPresets — теги, которые не предлагать в селекте (уже есть у клиента).
+ * excludeFromPresets — виды, которые не предлагать в селекте (уже есть у клиента).
  */
 export default function TagsField({
   value, onChange, excludeFromPresets = [],
@@ -31,8 +38,8 @@ export default function TagsField({
     <>
       <select className={dialogField} value=""
         onChange={(e) => e.target.value && onChange(toggleTag(value, e.target.value))}>
-        <option value="">+ Добавить тег…</option>
-        {PRESET_TAGS.filter((tag) => !hidden.includes(tag)).map((tag) => (
+        <option value="">+ Добавить вид…</option>
+        {EVENT_TYPES.filter((tag) => !hidden.includes(tag)).map((tag) => (
           <option key={tag} value={tag}>{tag}</option>
         ))}
       </select>
@@ -50,7 +57,7 @@ export default function TagsField({
         </div>
       )}
       <input className={dialogField} value={value} onChange={(e) => onChange(e.target.value)}
-        placeholder="свой тег через запятую" />
+        placeholder="свой вид через запятую" />
     </>
   );
 }

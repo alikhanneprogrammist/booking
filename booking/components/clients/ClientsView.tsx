@@ -68,7 +68,7 @@ export default function ClientsView({
                 <tr>
                   <th className="px-4 py-2 font-medium">{t('name')}</th>
                   <th className="px-4 py-2 font-medium">{t('phone')}</th>
-                  <th className="px-4 py-2 font-medium">{t('tags')}</th>
+                  <th className="px-4 py-2 font-medium">{t('eventType')}</th>
                   <th className="px-4 py-2 text-right font-medium">{t('visits')}</th>
                 </tr>
               </thead>

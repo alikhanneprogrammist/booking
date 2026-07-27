@@ -12,7 +12,7 @@ import type {
   PaymentMethod,
 } from '@/lib/types';
 import ClientPicker from './ClientPicker';
-import TagsField from '@/components/clients/TagsField';
+import {EVENT_TYPES} from '@/components/clients/TagsField';
 import ResourceSummary from './ResourceSummary';
 
 export default function BookingDialog({
@@ -43,8 +43,9 @@ export default function BookingDialog({
 
   const [resourceId, setResourceId] = useState(init?.resourceId ?? prefill?.resourceId ?? resources[0].id);
   const [clientId, setClientId] = useState(init?.clientId ?? clients[0]?.id ?? '');
-  // Только НОВЫЕ теги: при сохранении добавляются к тегам клиента (union на сервере),
-  // существующие бронь не удаляет — убрать тег можно только в карточке клиента.
+  // Вид мероприятия этой брони: при сохранении ДОБАВЛЯЕТСЯ к видам клиента
+  // (union на сервере), существующие бронь не удаляет — убрать можно только
+  // в карточке клиента. «День рождения» дописывает дату рождения из даты брони.
   const [tags, setTags] = useState('');
   // Дата брони + время начала + длительность в часах; конец считается автоматически
   // (ночные и многодневные брони — просто большим числом часов).
@@ -260,7 +261,11 @@ export default function BookingDialog({
                 ))}
               </div>
             )}
-            <TagsField value={tags} onChange={setTags} excludeFromPresets={existingTags} />
+            {/* Один вид на бронь; «День рождения» синхронизирует дату рождения клиента */}
+            <select className={fieldCls} value={tags} onChange={(e) => setTags(e.target.value)}>
+              <option value="">—</option>
+              {EVENT_TYPES.map((ev) => <option key={ev} value={ev}>{ev}</option>)}
+            </select>
           </div>
           <label className={labelCls}>
             {tb('date')}

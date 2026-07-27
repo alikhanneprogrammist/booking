@@ -1,7 +1,7 @@
 import {z} from 'zod';
 import {Prisma} from '@prisma/client';
 import {prisma} from './db';
-import {durationHours} from './time';
+import {durationHours, toAlmaty} from './time';
 import {computePrice, type PricingResource, type Tariff} from './pricing';
 import {mergeTags} from './tags';
 import {getSettings} from './queries';
@@ -179,6 +179,17 @@ async function validateRange(
   }
 }
 
+/**
+ * Вид «День рождения» среди видов мероприятия брони → календарная дата брони
+ * (день Алматы, UTC-полночь — формат Client.dateOfBirth) для дописывания
+ * в карточку клиента; иначе null.
+ */
+function birthdayFromEvent(clientTags: string[] | undefined, startAt: Date): Date | null {
+  if (!clientTags?.some((t) => t.trim().toLowerCase() === 'день рождения')) return null;
+  const w = toAlmaty(startAt);
+  return new Date(Date.UTC(w.getFullYear(), w.getMonth(), w.getDate()));
+}
+
 // ───────────────────────── CRUD ───────────────────────────────────────
 
 /** Создание брони (ТЗ §4.5): валидация → анти-овербукинг → авторасчёт → транзакция. */
@@ -269,6 +280,15 @@ export async function createBooking(raw: BookingInput, createdById: string) {
         where: {id: data.clientId, source: null},
         data: {source: data.source},
       });
+      // Вид «День рождения» → дата брони становится датой рождения клиента
+      // (только если она пуста: вручную введённая точнее — там есть год).
+      const bday = birthdayFromEvent(data.clientTags, data.startAt);
+      if (bday) {
+        await tx.client.updateMany({
+          where: {id: data.clientId, dateOfBirth: null},
+          data: {dateOfBirth: bday},
+        });
+      }
       return b;
     });
     return {booking, price};
@@ -425,6 +445,14 @@ export async function updateBooking(id: string, rawInput: Partial<BookingInput>,
         await tx.client.updateMany({
           where: {id: raw.clientId ?? existing.clientId, source: null},
           data: {source: srcAfterPatch},
+        });
+      }
+      // Вид «День рождения» → дата брони (после патча) в пустую дату рождения клиента.
+      const bday = birthdayFromEvent(raw.clientTags, raw.startAt ?? existing.startAt);
+      if (bday) {
+        await tx.client.updateMany({
+          where: {id: raw.clientId ?? existing.clientId, dateOfBirth: null},
+          data: {dateOfBirth: bday},
         });
       }
       return updated;

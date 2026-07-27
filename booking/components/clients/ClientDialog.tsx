@@ -74,7 +74,7 @@ export default function ClientDialog({
             <textarea className={field} rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
           </label>
           <div className={label}>
-            {t('tags')}
+            {t('eventType')}
             <TagsField value={tags} onChange={setTags} />
           </div>
           <label className={label}>
