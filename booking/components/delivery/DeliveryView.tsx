@@ -82,11 +82,14 @@ export default function DeliveryView({
       o.note || '—',
       o.manager || '—',
     ]);
+    // Итоговый блок — те же 3 пункта, что карточки над таблицей, + прошлая неделя.
     const ws = XLSX.utils.aoa_to_sheet([
       header,
       ...dataRows,
-      [t('weekTotal'), String(orders.length), Math.round(totalAmount), Math.round(totalCourier)],
-      [t('prevWeekTotal'), String(prevTotals.count), Math.round(prevTotals.amount), Math.round(prevTotals.courier)],
+      [],
+      [t('countWeek'), orders.length, `${t('prevWeek')}: ${prevTotals.count}`],
+      [t('amountWeek'), Math.round(totalAmount), `${t('prevWeek')}: ${Math.round(prevTotals.amount)}`],
+      [t('courierWeek'), Math.round(totalCourier), `${t('prevWeek')}: ${Math.round(prevTotals.courier)}`],
     ]);
     ws['!cols'] = header.map(() => ({wch: 18}));
     const wb = XLSX.utils.book_new();
