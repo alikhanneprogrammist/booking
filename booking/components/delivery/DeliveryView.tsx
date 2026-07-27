@@ -65,9 +65,13 @@ export default function DeliveryView({
     }
   }
 
-  // Выгрузка недели в .xlsx — те же колонки, что в экселе доставки.
-  async function downloadXlsx() {
+  // Единый отчёт одним файлом: лист текущей недели (журнал + итоги) +
+  // листы-теплокарта по районам за каждый месяц (формат эксель-примера).
+  async function downloadReport() {
     const XLSX = await import('xlsx');
+    const wb = XLSX.utils.book_new();
+
+    // ── Лист 1: журнал текущей недели с итогами ──
     const header = [
       t('date'), t('weekday'), t('amount'), t('courierCost'),
       t('address'), t('district'), t('phone'), t('promo'), t('note'), t('manager'),
@@ -85,7 +89,7 @@ export default function DeliveryView({
       o.manager || '—',
     ]);
     // Итоговый блок — те же 3 пункта, что карточки над таблицей, + прошлая неделя.
-    const ws = XLSX.utils.aoa_to_sheet([
+    const weekWs = XLSX.utils.aoa_to_sheet([
       header,
       ...dataRows,
       [],
@@ -93,19 +97,15 @@ export default function DeliveryView({
       [t('amountWeek'), Math.round(totalAmount), `${t('prevWeek')}: ${Math.round(prevTotals.amount)}`],
       [t('courierWeek'), Math.round(totalCourier), `${t('prevWeek')}: ${Math.round(prevTotals.courier)}`],
     ]);
-    ws['!cols'] = header.map(() => ({wch: 18}));
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, weekLabel.replaceAll('–', '-'));
-    XLSX.writeFile(wb, `${t('fileName')}-${weekLabel.replaceAll(' ', '').replaceAll('–', '-')}.xlsx`);
-  }
+    weekWs['!cols'] = header.map(() => ({wch: 18}));
+    XLSX.utils.book_append_sheet(wb, weekWs, weekLabel.replaceAll('–', '-'));
 
-  // Отчёт-теплокарта по районам — формат эксель-примера «Тепловая карта»:
-  // лист на месяц; слева адреса с районами, справа сводка Район | Кол-во | % (+Сумма).
-  async function downloadDistrictReport() {
+    // ── Листы-теплокарта по районам (все месяцы с данными) ──
     const res = await deliveryDistrictReport();
-    if (!res.ok) return;
-
-    const XLSX = await import('xlsx');
+    if (!res.ok) {
+      XLSX.writeFile(wb, `${t('fileName')}-${weekLabel.replaceAll(' ', '').replaceAll('–', '-')}.xlsx`);
+      return;
+    }
 
     // Группировка по месяцам Алматы (свежие первыми).
     const byMonth = new Map<string, typeof res.orders>();
@@ -116,7 +116,6 @@ export default function DeliveryView({
     }
     const monthKeys = Array.from(byMonth.keys()).sort().reverse();
 
-    const wb = XLSX.utils.book_new();
     for (const key of monthKeys) {
       const monthOrders = byMonth.get(key)!;
       // Сводка по районам: полный список районов + «не указан», по убыванию кол-ва.
@@ -158,7 +157,7 @@ export default function DeliveryView({
       const label = new Date(y, m - 1, 1).toLocaleDateString(intl, {month: 'long', year: 'numeric'});
       XLSX.utils.book_append_sheet(wb, ws, label);
     }
-    XLSX.writeFile(wb, `${t('reportFileName')}.xlsx`);
+    XLSX.writeFile(wb, `${t('fileName')}-${weekLabel.replaceAll(' ', '').replaceAll('–', '-')}.xlsx`);
   }
 
   return (
@@ -171,13 +170,9 @@ export default function DeliveryView({
           <span className="min-w-44 px-2 text-center text-sm font-medium">{weekLabel}</span>
           <button onClick={() => shift(1)} aria-label="next"
             className="rounded-md border border-border px-2.5 py-1.5 text-sm hover:bg-subtle">›</button>
-          <button onClick={downloadXlsx}
+          <button onClick={downloadReport} title={t('districtReportHint')}
             className="ml-2 rounded-md border border-border px-2.5 py-1.5 text-sm hover:bg-subtle">
             ⬇ {t('download')}
-          </button>
-          <button onClick={downloadDistrictReport} title={t('districtReportHint')}
-            className="ml-1 rounded-md border border-border px-2.5 py-1.5 text-sm hover:bg-subtle">
-            🗺 {t('districtReport')}
           </button>
           <button onClick={() => setDialog({})}
             className="ml-1 rounded-md bg-primary px-2.5 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90">
