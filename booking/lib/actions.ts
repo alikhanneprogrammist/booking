@@ -437,6 +437,7 @@ export async function saveSettings(input: Partial<AppSettings>) {
   }
   if ('minBookingHours' in input) data.minBookingHours = clamp(input.minBookingHours ?? 3, 1, 24);
   if ('prepaymentPercent' in input) data.prepaymentPercent = clamp(input.prepaymentPercent ?? 0, 0, 100);
+  if ('vpsPayDay' in input) data.vpsPayDay = clamp(input.vpsPayDay ?? 3, 1, 28);
   for (const k of SETTINGS_STR_KEYS) {
     if (k in input) data[k] = orNull(input[k]);
   }

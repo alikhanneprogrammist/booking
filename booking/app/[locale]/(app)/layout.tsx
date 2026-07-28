@@ -19,13 +19,13 @@ export default async function AppShell({
   const isAdmin = user?.role === 'ADMIN';
   const settings = await getSettings();
 
-  // Напоминание об оплате VPS (до 3 числа): показываем, пока текущий месяц
-  // не отмечен «Оплачено»; после 3-го — красное «просрочено».
+  // Напоминание об оплате VPS (до settings.vpsPayDay числа): показываем, пока
+  // текущий месяц не отмечен «Оплачено»; после срока — красное «просрочено».
   const w = toAlmaty(new Date());
   const monthKey = `${w.getFullYear()}-${String(w.getMonth() + 1).padStart(2, '0')}`;
   const vpsPaidMonth = await getVpsPaidMonth();
   const showVps = vpsPaidMonth !== monthKey;
-  const vpsOverdue = w.getDate() > 3;
+  const vpsOverdue = w.getDate() > settings.vpsPayDay;
 
   // Счётчик для бейджа «Дни рождения» — клиенты с ДР в ближайшие 7 дней (Алматы).
   const clients = await getClients();
@@ -88,7 +88,7 @@ export default async function AppShell({
       sidebar={sidebar}
     >
       <div className="flex h-full flex-col">
-        {showVps && <VpsReminder overdue={vpsOverdue} />}
+        {showVps && <VpsReminder overdue={vpsOverdue} day={settings.vpsPayDay} />}
         <div className="min-h-0 flex-1">{children}</div>
       </div>
     </SidebarShell>

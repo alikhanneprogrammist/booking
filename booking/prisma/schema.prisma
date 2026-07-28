@@ -279,6 +279,8 @@ model Settings {
   // Напоминание об оплате VPS: 'YYYY-MM' месяца, отмеченного «Оплачено»
   // (вне AppSettings DTO — админ-форма настроек это поле не трогает).
   vpsPaidMonth String?
+  // День месяца, до которого нужно оплатить VPS (правится в администрировании).
+  vpsPayDay    Int     @default(3)
 
   // Заведение
   companyName String  @default("OFFICE 2020")

@@ -14,10 +14,10 @@ const MAX_LOGO_BYTES = 400 * 1024; // ~400 КБ (хранится как data-UR
 // тексты публичной страницы (вторая вкладка) не затираются.
 type VenueSettings = Pick<
   AppSettings,
-  | 'companyName' | 'logoUrl' | 'minBookingHours' | 'prepaymentPercent'
+  | 'companyName' | 'logoUrl' | 'minBookingHours' | 'prepaymentPercent' | 'vpsPayDay'
   | 'phone' | 'whatsapp' | 'instagram' | 'email' | 'address' | 'requisites'
 >;
-type VenueTextKey = Exclude<keyof VenueSettings, 'logoUrl' | 'minBookingHours' | 'prepaymentPercent'>;
+type VenueTextKey = Exclude<keyof VenueSettings, 'logoUrl' | 'minBookingHours' | 'prepaymentPercent' | 'vpsPayDay'>;
 
 export default function SettingsForm({settings}: {settings: AppSettings}) {
   const t = useTranslations('settings');
@@ -30,6 +30,7 @@ export default function SettingsForm({settings}: {settings: AppSettings}) {
     logoUrl: settings.logoUrl,
     minBookingHours: settings.minBookingHours,
     prepaymentPercent: settings.prepaymentPercent,
+    vpsPayDay: settings.vpsPayDay,
     phone: settings.phone,
     whatsapp: settings.whatsapp,
     instagram: settings.instagram,
@@ -104,7 +105,8 @@ export default function SettingsForm({settings}: {settings: AppSettings}) {
     </label>
   );
 
-  const numField = (key: 'minBookingHours' | 'prepaymentPercent', min: number, max: number) => (
+  const numField = (key: 'minBookingHours' | 'prepaymentPercent' | 'vpsPayDay', min: number, max: number) => (
+
     <label className="block">
       <span className="mb-1 block text-xs font-medium text-muted">{t(`rules.${key}`)}</span>
       <input
@@ -173,6 +175,7 @@ export default function SettingsForm({settings}: {settings: AppSettings}) {
       <div className="grid gap-4 sm:grid-cols-2">
         {numField('minBookingHours', 1, 24)}
         {numField('prepaymentPercent', 0, 100)}
+        {numField('vpsPayDay', 1, 28)}
       </div>
 
       <div className="mt-6 flex items-center gap-3">

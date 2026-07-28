@@ -10,7 +10,7 @@ import {markVpsPaid} from '@/lib/actions';
  * янтарный с 1-го числа, красный после 3-го без отметки. «Оплачено» скрывает
  * его для всех до следующего месяца.
  */
-export default function VpsReminder({overdue}: {overdue: boolean}) {
+export default function VpsReminder({overdue, day}: {overdue: boolean; day: number}) {
   const t = useTranslations('reminder');
   const router = useRouter();
   const [saving, setSaving] = useState(false);
@@ -34,7 +34,7 @@ export default function VpsReminder({overdue}: {overdue: boolean}) {
           : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-300'
       }`}
     >
-      <span>💳 {overdue ? t('vpsOverdue') : t('vps')}</span>
+      <span>💳 {overdue ? t('vpsOverdue', {day}) : t('vps', {day})}</span>
       <button
         onClick={paid}
         disabled={saving}

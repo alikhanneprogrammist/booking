@@ -16,6 +16,8 @@ export type AppSettings = {
   // Глобальные правила брони
   minBookingHours: number;
   prepaymentPercent: number;
+  // День месяца, до которого оплачивается VPS (баннер-напоминание)
+  vpsPayDay: number;
   // Публичная страница заявок /book (двуязычно; пусто → i18n-дефолт)
   publicTitleRu: string;
   publicTitleKk: string;
@@ -32,6 +34,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   logoUrl: '',
   minBookingHours: 3,
   prepaymentPercent: 0,
+  vpsPayDay: 3,
   phone: '',
   whatsapp: '',
   instagram: '',

@@ -238,6 +238,7 @@ export async function getSettings(): Promise<AppSettings> {
     logoUrl: row.logoUrl ?? '',
     minBookingHours: row.minBookingHours,
     prepaymentPercent: row.prepaymentPercent,
+    vpsPayDay: row.vpsPayDay,
     phone: row.phone ?? '',
     whatsapp: row.whatsapp ?? '',
     instagram: row.instagram ?? '',
