@@ -138,10 +138,14 @@ export default function AnalyticsView({
               const lost = lostKeys?.includes(r.key) ?? false;
               return (
                 <div key={r.key}>
+                  {/* Кол-во заездов — отдельно у названия, справа только деньги (не путать с ценой) */}
                   <div className="flex items-baseline justify-between text-sm">
-                    <span className="truncate">{label(r.key)}</span>
+                    <span className="min-w-0 truncate">
+                      {label(r.key)}
+                      <span className="ml-1.5 text-xs text-muted">{t('countLabel', {n: r.count})}</span>
+                    </span>
                     <span className={`ml-2 shrink-0 tabular-nums ${lost ? 'text-red-500/70' : 'text-muted'}`}>
-                      {r.count} · {money(r.revenue)}{lost ? ` · ${t('lost')}` : ''}
+                      {money(r.revenue)}{lost ? ` · ${t('lost')}` : ''}
                     </span>
                   </div>
                   {bar(r.count / max)}
@@ -223,7 +227,7 @@ export default function AnalyticsView({
               {series.map((d) => (
                 <div
                   key={d.day}
-                  title={`${d.day}: ${money(d.revenue)} · ${d.count}`}
+                  title={`${d.day}: ${money(d.revenue)} · ${t('countLabel', {n: d.count})}`}
                   className="flex-1 rounded-t bg-primary/60 transition-colors hover:bg-primary"
                   style={{height: `${Math.max(Math.round((d.revenue / maxSeries) * 100), 2)}%`}}
                 />
@@ -250,8 +254,9 @@ export default function AnalyticsView({
                   <span className="flex min-w-0 items-center gap-2">
                     <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{backgroundColor: rMap.get(r.key)?.color}} />
                     <span className="truncate font-medium">{rName(r.key)}</span>
+                    <span className="shrink-0 text-xs text-muted">{t('countLabel', {n: r.count})}</span>
                   </span>
-                  <span className="ml-2 shrink-0 tabular-nums text-muted">{r.count} · {money(r.revenue)}</span>
+                  <span className="ml-2 shrink-0 tabular-nums text-muted">{money(r.revenue)}</span>
                 </div>
                 {bar(r.revenue / maxResRev, rMap.get(r.key)?.color)}
               </div>
@@ -284,8 +289,11 @@ export default function AnalyticsView({
           <div className="divide-y divide-border overflow-hidden rounded-lg border border-border">
             {top.map((c) => (
               <Link key={c.clientId} href={`/clients/${c.clientId}`} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-subtle">
-                <span className="flex-1 truncate font-medium">{cMap.get(c.clientId)?.name ?? c.clientId}</span>
-                <span className="shrink-0 tabular-nums text-muted">{c.count} · {money(c.revenue)}</span>
+                <span className="min-w-0 flex-1 truncate font-medium">
+                  {cMap.get(c.clientId)?.name ?? c.clientId}
+                  <span className="ml-1.5 text-xs font-normal text-muted">{t('countLabel', {n: c.count})}</span>
+                </span>
+                <span className="shrink-0 tabular-nums text-muted">{money(c.revenue)}</span>
               </Link>
             ))}
           </div>
@@ -302,8 +310,11 @@ export default function AnalyticsView({
             {addonRows.map((a) => (
               <div key={a.addonId}>
                 <div className="flex items-baseline justify-between text-sm">
-                  <span className="truncate">{aName(a.addonId)}</span>
-                  <span className="ml-2 shrink-0 tabular-nums text-muted">× {a.qty} · {money(a.revenue)}</span>
+                  <span className="min-w-0 truncate">
+                    {aName(a.addonId)}
+                    <span className="ml-1.5 text-xs text-muted">× {a.qty}</span>
+                  </span>
+                  <span className="ml-2 shrink-0 tabular-nums text-muted">{money(a.revenue)}</span>
                 </div>
                 {bar(a.revenue / maxAddonRev)}
               </div>
@@ -338,7 +349,7 @@ export default function AnalyticsView({
                   {dlvSeries.map((d) => (
                     <div
                       key={d.day}
-                      title={`${d.day}: ${money(d.revenue)} · ${d.count}`}
+                      title={`${d.day}: ${money(d.revenue)} · ${t('countLabel', {n: d.count})}`}
                       className="flex-1 rounded-t bg-primary/60 transition-colors hover:bg-primary"
                       style={{height: `${Math.max(Math.round((d.revenue / maxDlvSeries) * 100), 2)}%`}}
                     />
