@@ -19,6 +19,7 @@
 # и scripts/backfill-districts.ts
 !Еженедельны*.xlsx
 !Тепловая*.xlsx
+!Недельны*.xlsx
 
 # «Асату» — отдельный git-репозиторий (github.com/alikhanneprogrammist/asatu)
 asatu/

@@ -197,6 +197,15 @@ export async function getDeliveryOrdersBetween(from: Date, to: Date): Promise<De
   }));
 }
 
+/** Архив посещаемости (импорт из экселя) для недели weekStart — вкладка «Посещаемость». */
+export async function getAttendanceArchive(weekStart: Date): Promise<Array<{source: string; count: number; amount?: number}>> {
+  const rows = await prisma.attendanceArchive.findMany({
+    where: {weekStart},
+    orderBy: {count: 'desc'},
+  });
+  return rows.map((r) => ({source: r.source, count: r.count, amount: r.amount ?? undefined}));
+}
+
 /** Число визитов (без отменённых) по клиентам — счётчик для списка клиентов. */
 export async function getVisitCounts(): Promise<Record<string, number>> {
   const rows = await prisma.booking.groupBy({

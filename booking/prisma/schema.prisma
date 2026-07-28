@@ -56,6 +56,8 @@ enum BookingSource {
   BLOGGERS // Блогеры / UGC
   B2B
   BI_KMG_QAZGAZ
+  YANDEX // Яндекс (карты/поиск)
+  MUKBANG // Ужин Мукбанг
 }
 
 enum PaymentMethod {
@@ -247,6 +249,23 @@ model DeliveryOrder {
   manager     String? // ответственный — кто внёс, текстом
 
   @@index([date])
+}
+
+// ───────────────────────── AttendanceArchive — архив посещаемости ──────
+// Недельные итоги посещаемости по источникам, разово импортированные из
+// эксель-файла «Недельный Анализ Посещаемости» (история ДО запуска системы).
+// Видны только во вкладке «Посещаемость» строкой «архив»; новые недели
+// считаются автоматически из броней.
+
+model AttendanceArchive {
+  id        String   @id @default(cuid())
+  weekStart DateTime @db.Date // понедельник недели (стеночная дата)
+  source    String // ключ BookingSource или исходный текст колонки экселя
+  count     Int // заездов за неделю
+  amount    Int? // сумма, если была в экселе (только у части источников)
+
+  @@unique([weekStart, source])
+  @@index([weekStart])
 }
 
 // ───────────────────────── Settings — настройки заведения ──────────────

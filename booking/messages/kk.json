@@ -9,6 +9,7 @@
     "analytics": "Аналитика",
     "prepayments": "Алдын ала төлемдер",
     "delivery": "Жеткізу",
+    "attendance": "Келушілік",
     "resources": "Нысандар",
     "users": "Қызметкерлер",
     "logout": "Шығу",
@@ -135,6 +136,22 @@
     "errDate": "Тапсырыс күнін көрсетіңіз",
     "errCourier": "Курьер шығындары — 0-ден кем емес сан",
     "errSave": "Сақталмады — қайталап көріңіз"
+  },
+  "attendance": {
+    "title": "Апталық келушілік",
+    "countWeek": "Апта ішіндегі келулер",
+    "revenueWeek": "Апта түсімі",
+    "avgCheck": "Орташа чек",
+    "prevWeek": "өткен апта",
+    "date": "Күні",
+    "weekday": "Апта күні",
+    "total": "Жиыны",
+    "totalSum": "Сома, ₸",
+    "prevWeekRow": "Өткен апта",
+    "archiveTitle": "Мұрағат (эксель)",
+    "archiveHint": "Ескі эксель-файлдан импортталған апталық қорытындылар (жүйе іске қосылғанға дейін)",
+    "download": "Жүктеп алу",
+    "fileName": "келушілік"
   },
   "calendar": {
     "title": "Бос орындар күнтізбесі",
@@ -320,7 +337,9 @@
     "OUTDOOR_AD": "Сыртқы жарнама",
     "BLOGGERS": "Блогерлер / UGC",
     "B2B": "B2B",
-    "BI_KMG_QAZGAZ": "BI / KMG / QazGaz"
+    "BI_KMG_QAZGAZ": "BI / KMG / QazGaz",
+    "YANDEX": "Яндекс",
+    "MUKBANG": "Мукбанг кеші"
   },
   "payment": {
     "KASPI": "Каспи",

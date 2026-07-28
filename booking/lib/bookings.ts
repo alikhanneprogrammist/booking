@@ -92,6 +92,7 @@ export const bookingInput = z.object({
       'ADMIN', 'PHONE', 'WHATSAPP', 'INSTAGRAM', 'WIDGET',
       'TWO_GIS', 'GOOGLE_SITE', 'REGULAR', 'RETURNING', 'REFERRAL',
       'AGENT', 'OUTDOOR_AD', 'BLOGGERS', 'B2B', 'BI_KMG_QAZGAZ',
+      'YANDEX', 'MUKBANG',
     ])
     .default('ADMIN'),
   tariff: z

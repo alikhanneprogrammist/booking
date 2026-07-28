@@ -16,7 +16,7 @@ export type BookingStatus = (typeof BOOKING_STATUSES)[number];
 export const BOOKING_SOURCES = [
   'ADMIN', 'PHONE', 'WHATSAPP', 'INSTAGRAM', 'WIDGET',
   'TWO_GIS', 'GOOGLE_SITE', 'REGULAR', 'RETURNING', 'REFERRAL',
-  'AGENT', 'OUTDOOR_AD', 'BLOGGERS', 'B2B', 'BI_KMG_QAZGAZ',
+  'AGENT', 'OUTDOOR_AD', 'BLOGGERS', 'B2B', 'BI_KMG_QAZGAZ', 'YANDEX', 'MUKBANG',
 ] as const;
 export type BookingSource = (typeof BOOKING_SOURCES)[number];
 

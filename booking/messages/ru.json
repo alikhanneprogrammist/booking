@@ -9,6 +9,7 @@
     "analytics": "Аналитика",
     "prepayments": "Предоплаты",
     "delivery": "Доставка",
+    "attendance": "Посещаемость",
     "resources": "Объекты",
     "users": "Сотрудники",
     "logout": "Выйти",
@@ -135,6 +136,22 @@
     "errDate": "Укажите дату заказа",
     "errCourier": "Затраты на курьера — число не меньше 0",
     "errSave": "Не удалось сохранить — попробуйте ещё раз"
+  },
+  "attendance": {
+    "title": "Недельная посещаемость",
+    "countWeek": "Заездов за неделю",
+    "revenueWeek": "Выручка за неделю",
+    "avgCheck": "Средний чек",
+    "prevWeek": "прошлая неделя",
+    "date": "Дата",
+    "weekday": "День недели",
+    "total": "Итого",
+    "totalSum": "Сумма, ₸",
+    "prevWeekRow": "Прошлая неделя",
+    "archiveTitle": "Архив (эксель)",
+    "archiveHint": "Недельные итоги, импортированные из старого эксель-файла (до запуска системы)",
+    "download": "Скачать",
+    "fileName": "посещаемость"
   },
   "calendar": {
     "title": "Календарь занятости",
@@ -320,7 +337,9 @@
     "OUTDOOR_AD": "Наружная реклама",
     "BLOGGERS": "Блогеры / UGC",
     "B2B": "B2B",
-    "BI_KMG_QAZGAZ": "BI / KMG / QazGaz"
+    "BI_KMG_QAZGAZ": "BI / KMG / QazGaz",
+    "YANDEX": "Яндекс",
+    "MUKBANG": "Ужин Мукбанг"
   },
   "payment": {
     "KASPI": "Каспи",
