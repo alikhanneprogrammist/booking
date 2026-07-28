@@ -68,6 +68,7 @@ export default function ClientsView({
                 <tr>
                   <th className="px-4 py-2 font-medium">{t('name')}</th>
                   <th className="px-4 py-2 font-medium">{t('phone')}</th>
+                  <th className="px-4 py-2 font-medium">{t('source')}</th>
                   <th className="px-4 py-2 font-medium">{t('eventType')}</th>
                   <th className="px-4 py-2 text-right font-medium">{t('visits')}</th>
                 </tr>
@@ -79,12 +80,12 @@ export default function ClientsView({
                       <Link href={`/clients/${c.id}`} className="font-medium hover:underline">{c.name}</Link>
                     </td>
                     <td className="px-4 py-2 text-muted">{c.phone}</td>
+                    {/* Источник и вид мероприятия — отдельными колонками */}
+                    <td className="px-4 py-2">
+                      {c.source ? <span className={sourceChip}>{tsrc(c.source)}</span> : <span className="text-muted">—</span>}
+                    </td>
                     <td className="px-4 py-2">
                       <div className="flex flex-wrap gap-1">
-                        {/* Источник — синий чип; теги — фиолетовые, VIP — янтарный */}
-                        {c.source && (
-                          <span title={t('source')} className={sourceChip}>{tsrc(c.source)}</span>
-                        )}
                         {(c.tags ?? []).map((tag) => (
                           <span key={tag} className={tagChip(tag)}>{tag}</span>
                         ))}

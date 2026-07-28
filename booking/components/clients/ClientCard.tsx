@@ -74,15 +74,21 @@ export default function ClientCard({
           {client.dateOfBirth && (
             <div className="mt-1 text-sm text-muted">🎂 {formatBirthday(client.dateOfBirth, locale)}</div>
           )}
-          <div className="mt-2 flex flex-wrap gap-1">
-            {/* Источник — синий чип; теги — фиолетовые, VIP — янтарный */}
-            {client.source && (
-              <span title={t('source')} className={sourceChip}>{tsrc(client.source)}</span>
-            )}
-            {(client.tags ?? []).map((tag) => (
-              <span key={tag} className={tagChip(tag)}>{tag}</span>
-            ))}
-          </div>
+          {/* Источник и вид мероприятия — отдельными строками с подписями */}
+          {client.source && (
+            <div className="mt-2 flex items-center gap-1.5 text-xs text-muted">
+              {t('source')}:
+              <span className={sourceChip}>{tsrc(client.source)}</span>
+            </div>
+          )}
+          {(client.tags ?? []).length > 0 && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-muted">
+              {t('eventType')}:
+              {(client.tags ?? []).map((tag) => (
+                <span key={tag} className={tagChip(tag)}>{tag}</span>
+              ))}
+            </div>
+          )}
         </div>
         <div className="flex gap-2">
           <button onClick={() => setEdit(true)} className="rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-subtle">
