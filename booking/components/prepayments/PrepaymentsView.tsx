@@ -171,23 +171,31 @@ export default function PrepaymentsView({
 
   // Выгрузка месяца в .xlsx — те же колонки, что и таблица (и эксель бухгалтерии).
   async function downloadXlsx() {
-    const XLSX = await import('xlsx');
-    const header = [t('amount'), t('type'), t('guest'), t('resource'), t('paidDate'), t('visitDate'), t('note'), t('manager')];
-    const dataRows = rows.map((r) => [
-      Math.round(r.amount),
-      r.method ? tpm(r.method) : '—',
-      r.guest,
-      r.resourceLabel,
-      r.paidAt ? fmtDate(r.paidAt) : '—',
-      fmtDate(r.visitAt),
-      [r.note, isCancelled(r) ? `(${ts(r.status!)})` : ''].filter(Boolean).join(' ') || '—',
-      r.manager || '—',
-    ]);
-    const ws = XLSX.utils.aoa_to_sheet([header, ...dataRows, [Math.round(totalSum), t('monthTotal')]]);
-    ws['!cols'] = header.map(() => ({wch: 18}));
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, monthLabel);
-    XLSX.writeFile(wb, `${t('fileName')}-${year}-${String(month).padStart(2, '0')}.xlsx`);
+    const {newWorkbook, addTitle, addHeader, addDataRow, addTotalRow, moneyColumns, saveWorkbook} =
+      await import('@/lib/excel');
+    const wb = await newWorkbook();
+    const ws = wb.addWorksheet(monthLabel);
+
+    addTitle(ws, `${t('title')} — ${monthLabel}`, 8);
+    addHeader(ws, [t('amount'), t('type'), t('guest'), t('resource'), t('paidDate'), t('visitDate'), t('note'), t('manager')]);
+    rows.forEach((r, i) =>
+      addDataRow(ws, [
+        Math.round(r.amount),
+        r.method ? tpm(r.method) : '—',
+        r.guest,
+        r.resourceLabel,
+        r.paidAt ? fmtDate(r.paidAt) : '—',
+        fmtDate(r.visitAt),
+        [r.note, isCancelled(r) ? `(${ts(r.status!)})` : ''].filter(Boolean).join(' ') || '—',
+        r.manager || '—',
+      ], i % 2 === 1),
+    );
+    addTotalRow(ws, [Math.round(totalSum), t('monthTotal'), '', '', '', '', '', `${t('count')}: ${rows.length}`]);
+    moneyColumns(ws, [1], 3);
+    ws.columns = [{width: 14}, {width: 12}, {width: 22}, {width: 12}, {width: 13}, {width: 14}, {width: 28}, {width: 16}];
+    ws.views = [{state: 'frozen', ySplit: 2}];
+
+    await saveWorkbook(wb, `${t('fileName')}-${year}-${String(month).padStart(2, '0')}.xlsx`);
   }
 
   return (

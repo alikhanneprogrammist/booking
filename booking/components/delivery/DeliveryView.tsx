@@ -66,98 +66,109 @@ export default function DeliveryView({
   }
 
   // Единый отчёт одним файлом: лист текущей недели (журнал + итоги) +
-  // листы-теплокарта по районам за каждый месяц (формат эксель-примера).
+  // листы-теплокарта по районам за каждый месяц (формат эксель-примера,
+  // ячейки районов подсвечены цветом по доле).
   async function downloadReport() {
-    const XLSX = await import('xlsx');
-    const wb = XLSX.utils.book_new();
+    const {newWorkbook, addTitle, addHeader, addDataRow, addTotalRow, moneyColumns, heatFill, saveWorkbook} =
+      await import('@/lib/excel');
+    const wb = await newWorkbook();
 
     // ── Лист 1: журнал текущей недели с итогами ──
-    const header = [
+    const ws = wb.addWorksheet(weekLabel.replaceAll('–', '-'));
+    addTitle(ws, `${t('title')} — ${weekLabel}`, 10);
+    addHeader(ws, [
       t('date'), t('weekday'), t('amount'), t('courierCost'),
       t('address'), t('district'), t('phone'), t('promo'), t('note'), t('manager'),
-    ];
-    const dataRows = orders.map((o) => [
-      fmtDate(o.date),
-      weekday(o.date),
-      Math.round(o.amount),
-      o.courierCost != null ? Math.round(o.courierCost) : '—',
-      o.address || '—',
-      o.district || '—',
-      o.phone || '—',
-      o.promo || '—',
-      o.note || '—',
-      o.manager || '—',
     ]);
+    orders.forEach((o, i) =>
+      addDataRow(ws, [
+        fmtDate(o.date),
+        weekday(o.date),
+        Math.round(o.amount),
+        o.courierCost != null ? Math.round(o.courierCost) : '—',
+        o.address || '—',
+        o.district || '—',
+        o.phone || '—',
+        o.promo || '—',
+        o.note || '—',
+        o.manager || '—',
+      ], i % 2 === 1),
+    );
     // Итоговый блок — те же 3 пункта, что карточки над таблицей, + прошлая неделя.
-    const weekWs = XLSX.utils.aoa_to_sheet([
-      header,
-      ...dataRows,
-      [],
-      [t('countWeek'), orders.length, `${t('prevWeek')}: ${prevTotals.count}`],
-      [t('amountWeek'), Math.round(totalAmount), `${t('prevWeek')}: ${Math.round(prevTotals.amount)}`],
-      [t('courierWeek'), Math.round(totalCourier), `${t('prevWeek')}: ${Math.round(prevTotals.courier)}`],
-    ]);
-    weekWs['!cols'] = header.map(() => ({wch: 18}));
-    XLSX.utils.book_append_sheet(wb, weekWs, weekLabel.replaceAll('–', '-'));
+    addTotalRow(ws, [t('countWeek'), orders.length, `${t('prevWeek')}: ${prevTotals.count}`]);
+    addTotalRow(ws, [t('amountWeek'), Math.round(totalAmount), `${t('prevWeek')}: ${Math.round(prevTotals.amount).toLocaleString('ru-RU')} ₸`]);
+    addTotalRow(ws, [t('courierWeek'), Math.round(totalCourier), `${t('prevWeek')}: ${Math.round(prevTotals.courier).toLocaleString('ru-RU')} ₸`]);
+    moneyColumns(ws, [3, 4], 3);
+    ws.columns = [
+      {width: 12}, {width: 13}, {width: 13}, {width: 13}, {width: 26},
+      {width: 14}, {width: 15}, {width: 18}, {width: 26}, {width: 14},
+    ];
+    ws.views = [{state: 'frozen', ySplit: 2}];
 
     // ── Листы-теплокарта по районам (все месяцы с данными) ──
     const res = await deliveryDistrictReport();
-    if (!res.ok) {
-      XLSX.writeFile(wb, `${t('fileName')}-${weekLabel.replaceAll(' ', '').replaceAll('–', '-')}.xlsx`);
-      return;
-    }
-
-    // Группировка по месяцам Алматы (свежие первыми).
-    const byMonth = new Map<string, typeof res.orders>();
-    for (const o of res.orders) {
-      const w = toAlmaty(new Date(o.date));
-      const key = `${w.getFullYear()}-${String(w.getMonth() + 1).padStart(2, '0')}`;
-      byMonth.set(key, [...(byMonth.get(key) ?? []), o]);
-    }
-    const monthKeys = Array.from(byMonth.keys()).sort().reverse();
-
-    for (const key of monthKeys) {
-      const monthOrders = byMonth.get(key)!;
-      // Сводка по районам: полный список районов + «не указан», по убыванию кол-ва.
-      const agg = new Map<string, {count: number; amount: number}>();
-      for (const o of monthOrders) {
-        const d = o.district ?? t('noDistrict');
-        const cur = agg.get(d) ?? {count: 0, amount: 0};
-        cur.count += 1;
-        cur.amount += o.amount;
-        agg.set(d, cur);
+    if (res.ok) {
+      // Группировка по месяцам Алматы (свежие первыми).
+      const byMonth = new Map<string, typeof res.orders>();
+      for (const o of res.orders) {
+        const w = toAlmaty(new Date(o.date));
+        const key = `${w.getFullYear()}-${String(w.getMonth() + 1).padStart(2, '0')}`;
+        byMonth.set(key, [...(byMonth.get(key) ?? []), o]);
       }
-      const summary = [
-        ...DELIVERY_DISTRICTS.map((d) => ({district: d as string, ...(agg.get(d) ?? {count: 0, amount: 0})})),
-        ...(agg.has(t('noDistrict')) ? [{district: t('noDistrict'), ...agg.get(t('noDistrict'))!}] : []),
-      ].sort((a, b) => b.count - a.count);
-      const total = Math.max(1, monthOrders.length);
+      const monthKeys = Array.from(byMonth.keys()).sort().reverse();
 
-      // Слева адреса, справа сводка — строка к строке (как в примере).
-      const rowsCount = Math.max(monthOrders.length, summary.length);
-      const aoa: unknown[][] = [
-        [t('address'), t('district'), '', t('district'), t('ordersCount'), t('share'), t('amount')],
-      ];
-      for (let i = 0; i < rowsCount; i++) {
-        const o = monthOrders[i];
-        const s = summary[i];
-        aoa.push([
-          o ? o.address || '—' : '',
-          o ? o.district || '—' : '',
-          '',
-          s ? s.district : '',
-          s ? s.count : '',
-          s ? `${Math.round((s.count / total) * 100)}%` : '',
-          s ? Math.round(s.amount) : '',
-        ]);
+      for (const key of monthKeys) {
+        const monthOrders = byMonth.get(key)!;
+        const agg = new Map<string, {count: number; amount: number}>();
+        for (const o of monthOrders) {
+          const d = o.district ?? t('noDistrict');
+          const cur = agg.get(d) ?? {count: 0, amount: 0};
+          cur.count += 1;
+          cur.amount += o.amount;
+          agg.set(d, cur);
+        }
+        const summary = [
+          ...DELIVERY_DISTRICTS.map((d) => ({district: d as string, ...(agg.get(d) ?? {count: 0, amount: 0})})),
+          ...(agg.has(t('noDistrict')) ? [{district: t('noDistrict'), ...agg.get(t('noDistrict'))!}] : []),
+        ].sort((a, b) => b.count - a.count);
+        const total = Math.max(1, monthOrders.length);
+        const maxShare = Math.max(...summary.map((s) => s.count / total), 0.01);
+
+        const [y, m] = key.split('-').map(Number);
+        const label = new Date(y, m - 1, 1).toLocaleDateString(intl, {month: 'long', year: 'numeric'});
+        const mws = wb.addWorksheet(label);
+        addTitle(mws, `${t('districtReport')} — ${label}`, 7);
+        addHeader(mws, [t('address'), t('district'), '', t('district'), t('ordersCount'), t('share'), t('amount')]);
+
+        // Слева адреса, справа сводка — строка к строке (как в примере);
+        // ячейка района в сводке залита «жаром» по доле от максимума месяца.
+        const rowsCount = Math.max(monthOrders.length, summary.length);
+        for (let i = 0; i < rowsCount; i++) {
+          const o = monthOrders[i];
+          const s = summary[i];
+          const row = addDataRow(mws, [
+            o ? o.address || '—' : '',
+            o ? o.district || '—' : '',
+            '',
+            s ? s.district : '',
+            s ? s.count : '',
+            s ? (s.count / total) : '',
+            s ? Math.round(s.amount) : '',
+          ], false);
+          if (s) {
+            const share = s.count / total;
+            for (const col of [4, 5, 6, 7]) row.getCell(col).fill = heatFill(share / maxShare);
+            row.getCell(6).numFmt = '0%';
+            row.getCell(4).font = {bold: share === maxShare};
+          }
+        }
+        moneyColumns(mws, [7], 3);
+        mws.columns = [{width: 28}, {width: 15}, {width: 3}, {width: 15}, {width: 9}, {width: 8}, {width: 13}];
+        mws.views = [{state: 'frozen', ySplit: 2}];
       }
-      const ws = XLSX.utils.aoa_to_sheet(aoa);
-      ws['!cols'] = [{wch: 26}, {wch: 14}, {wch: 3}, {wch: 14}, {wch: 8}, {wch: 8}, {wch: 12}];
-      const [y, m] = key.split('-').map(Number);
-      const label = new Date(y, m - 1, 1).toLocaleDateString(intl, {month: 'long', year: 'numeric'});
-      XLSX.utils.book_append_sheet(wb, ws, label);
     }
-    XLSX.writeFile(wb, `${t('fileName')}-${weekLabel.replaceAll(' ', '').replaceAll('–', '-')}.xlsx`);
+
+    await saveWorkbook(wb, `${t('fileName')}-${weekLabel.replaceAll(' ', '').replaceAll('–', '-')}.xlsx`);
   }
 
   return (

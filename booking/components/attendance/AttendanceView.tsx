@@ -70,6 +70,8 @@ export default function AttendanceView({
       }
     }
     return {counts, sums, totals};
+    // ws выводится из weekStartIso — зависимость через строку, чтобы не пересоздавать Date.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookings, weekStartIso]);
 
   // Прошлая неделя — итоги по источникам (для строки сравнения).
@@ -99,31 +101,46 @@ export default function AttendanceView({
 
   // Выгрузка недели в .xlsx — формат эксель-файла посещаемости.
   async function downloadXlsx() {
-    const XLSX = await import('xlsx');
-    const header = [t('date'), t('weekday'), ...columns.map(srcLabel), t('total')];
-    const dayRows = days.map((d, i) => [
-      fmtDate(d),
-      weekdayName(d),
-      ...columns.map((c) => counts[i].get(c) || ''),
-      totals.byDay[i].count || '',
-    ]);
-    const aoa = [
-      [t('title')],
-      header,
-      ...dayRows,
-      [t('total'), '', ...columns.map((c) => totals.bySource.get(c)?.count ?? 0), weekCount],
-      [t('totalSum'), '', ...columns.map((c) => Math.round(totals.bySource.get(c)?.sum ?? 0)), Math.round(weekSum)],
-      [t('prevWeekRow'), '', ...columns.map((c) => prevBySource.get(c) ?? 0), prevCount],
-    ];
+    const {newWorkbook, addTitle, addHeader, addDataRow, addTotalRow, moneyColumns, saveWorkbook} =
+      await import('@/lib/excel');
+    const wb = await newWorkbook();
+    const ws2 = wb.addWorksheet(weekLabel.replaceAll('–', '-'));
+    const width = columns.length + 3;
+
+    addTitle(ws2, `${t('title')} — ${weekLabel}`, width);
+    addHeader(ws2, [t('date'), t('weekday'), ...columns.map(srcLabel), t('total')]);
+    days.forEach((d, i) =>
+      addDataRow(ws2, [
+        fmtDate(d),
+        weekdayName(d),
+        ...columns.map((c) => counts[i].get(c) || ''),
+        totals.byDay[i].count || '',
+      ], i % 2 === 1),
+    );
+    addTotalRow(ws2, [t('total'), '', ...columns.map((c) => totals.bySource.get(c)?.count ?? 0), weekCount]);
+    const sumRow = addTotalRow(
+      ws2,
+      [t('totalSum'), '', ...columns.map((c) => Math.round(totals.bySource.get(c)?.sum ?? 0) || ''), Math.round(weekSum)],
+      'FFF1F5F9',
+    );
+    sumRow.eachCell({includeEmpty: false}, (c, col) => {
+      if (col > 2 && typeof c.value === 'number') c.numFmt = '#,##0';
+    });
+    addTotalRow(ws2, [t('prevWeekRow'), '', ...columns.map((c) => prevBySource.get(c) ?? 0), prevCount], 'FFF1F5F9');
     if (archive.length) {
-      aoa.push([]);
-      aoa.push([t('archiveTitle'), '', ...columns.map((c) => archive.find((a) => a.source === c)?.count ?? '')]);
+      // Архивная строка — янтарная, как в интерфейсе.
+      addTotalRow(
+        ws2,
+        [t('archiveTitle'), '', ...columns.map((c) => archive.find((a) => a.source === c)?.count ?? ''),
+          archive.reduce((s, a) => s + a.count, 0)],
+        'FFFEF3C7',
+      );
     }
-    const ws2 = XLSX.utils.aoa_to_sheet(aoa);
-    ws2['!cols'] = [{wch: 12}, {wch: 13}, ...columns.map(() => ({wch: 12})), {wch: 9}];
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws2, weekLabel.replaceAll('–', '-'));
-    XLSX.writeFile(wb, `${t('fileName')}-${weekLabel.replaceAll(' ', '').replaceAll('–', '-')}.xlsx`);
+    moneyColumns(ws2, [], 3);
+    ws2.columns = [{width: 12}, {width: 14}, ...columns.map(() => ({width: 12})), {width: 9}];
+    ws2.views = [{state: 'frozen', xSplit: 2, ySplit: 2}];
+
+    await saveWorkbook(wb, `${t('fileName')}-${weekLabel.replaceAll(' ', '').replaceAll('–', '-')}.xlsx`);
   }
 
   const cellCls = 'whitespace-nowrap px-2 py-1.5 text-center tabular-nums';
