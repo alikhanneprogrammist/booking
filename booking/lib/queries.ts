@@ -197,6 +197,15 @@ export async function getDeliveryOrdersBetween(from: Date, to: Date): Promise<De
   }));
 }
 
+/** Месяц 'YYYY-MM', за который VPS отмечен оплаченным (баннер-напоминание). */
+export async function getVpsPaidMonth(): Promise<string | null> {
+  const row = await prisma.settings.findUnique({
+    where: {id: SETTINGS_ID},
+    select: {vpsPaidMonth: true},
+  });
+  return row?.vpsPaidMonth ?? null;
+}
+
 /** Архив посещаемости (импорт из экселя) для недели weekStart — вкладка «Посещаемость». */
 export async function getAttendanceArchive(weekStart: Date): Promise<Array<{source: string; count: number; amount?: number}>> {
   const rows = await prisma.attendanceArchive.findMany({

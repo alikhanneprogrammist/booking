@@ -3,7 +3,8 @@ import BrandLogo from '@/components/BrandLogo';
 import Sidebar from '@/components/Sidebar';
 import SidebarShell from '@/components/SidebarShell';
 import {currentUser} from '@/lib/auth-helpers';
-import {getSettings, getClients} from '@/lib/queries';
+import {getSettings, getClients, getVpsPaidMonth} from '@/lib/queries';
+import VpsReminder from '@/components/VpsReminder';
 import {toAlmaty} from '@/lib/time';
 import {upcomingBirthdays} from '@/lib/birthdays';
 import {doSignOut} from '@/lib/auth-actions';
@@ -18,8 +19,15 @@ export default async function AppShell({
   const isAdmin = user?.role === 'ADMIN';
   const settings = await getSettings();
 
-  // Счётчик для бейджа «Дни рождения» — клиенты с ДР в ближайшие 7 дней (Алматы).
+  // Напоминание об оплате VPS (до 3 числа): показываем, пока текущий месяц
+  // не отмечен «Оплачено»; после 3-го — красное «просрочено».
   const w = toAlmaty(new Date());
+  const monthKey = `${w.getFullYear()}-${String(w.getMonth() + 1).padStart(2, '0')}`;
+  const vpsPaidMonth = await getVpsPaidMonth();
+  const showVps = vpsPaidMonth !== monthKey;
+  const vpsOverdue = w.getDate() > 3;
+
+  // Счётчик для бейджа «Дни рождения» — клиенты с ДР в ближайшие 7 дней (Алматы).
   const clients = await getClients();
   const birthdaysSoon = upcomingBirthdays(
     clients,
@@ -79,7 +87,10 @@ export default async function AppShell({
       menuLabel={t('nav.menu')}
       sidebar={sidebar}
     >
-      {children}
+      <div className="flex h-full flex-col">
+        {showVps && <VpsReminder overdue={vpsOverdue} />}
+        <div className="min-h-0 flex-1">{children}</div>
+      </div>
     </SidebarShell>
   );
 }

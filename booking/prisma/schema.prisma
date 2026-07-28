@@ -276,6 +276,10 @@ model AttendanceArchive {
 model Settings {
   id String @id @default("singleton")
 
+  // Напоминание об оплате VPS: 'YYYY-MM' месяца, отмеченного «Оплачено»
+  // (вне AppSettings DTO — админ-форма настроек это поле не трогает).
+  vpsPaidMonth String?
+
   // Заведение
   companyName String  @default("OFFICE 2020")
   logoUrl     String? // логотип как data-URL (base64) — показ в сайдбаре и на /book

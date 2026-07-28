@@ -14,6 +14,7 @@ import {toClient, toResource, toAddon, toUser} from './queries';
 import {BOOKING_SOURCES, DELIVERY_DISTRICTS} from './enums';
 import type {MockResource, MockAddon} from './types';
 import {SETTINGS_ID, type AppSettings} from './settings';
+import {toAlmaty} from './time';
 
 /**
  * Серверные экшены (этап 2): мутации поверх Prisma. Ожидаемые доменные ошибки
@@ -105,6 +106,21 @@ export async function saveClient(input: {
     if (isUniquePhone(e)) return {ok: false as const, error: 'DUPLICATE_PHONE' as const};
     throw e;
   }
+}
+
+/** Отметка «VPS оплачен за текущий месяц» — скрывает баннер-напоминание (любой сотрудник). */
+export async function markVpsPaid() {
+  const user = await currentUser();
+  if (!user) return {ok: false as const, error: 'FORBIDDEN' as const};
+  const w = toAlmaty(new Date());
+  const monthKey = `${w.getFullYear()}-${String(w.getMonth() + 1).padStart(2, '0')}`;
+  await prisma.settings.upsert({
+    where: {id: SETTINGS_ID},
+    update: {vpsPaidMonth: monthKey},
+    create: {id: SETTINGS_ID, vpsPaidMonth: monthKey},
+  });
+  refresh();
+  return {ok: true as const};
 }
 
 /** Быстрое сохранение примечания с карточки клиента — доступно всем сотрудникам. */
