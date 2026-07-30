@@ -20,6 +20,8 @@
 !Еженедельны*.xlsx
 !Тепловая*.xlsx
 !Недельны*.xlsx
+# Исключение: табель — нужен на серверах для scripts/import-timesheet.ts
+!Табель*.xlsx
 
 # «Асату» — отдельный git-репозиторий (github.com/alikhanneprogrammist/asatu)
 asatu/
