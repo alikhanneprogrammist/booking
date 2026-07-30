@@ -268,6 +268,42 @@ model AttendanceArchive {
   @@index([weekStart])
 }
 
+// ───────────────────────── Табель учёта рабочего времени ───────────────
+// Вкладка «Табель» (как эксель «Табель План-Факт»): сотрудники по отделам,
+// на каждый день месяца — часы по плану и по факту. В аналитику/брони
+// не попадает. Отдел — ключ из TIMESHEET_DEPARTMENTS (lib/enums.ts).
+
+model Employee {
+  id          String   @id @default(cuid())
+  name        String // Ф.И.О. (или «Вакансия»)
+  position    String // должность («Администратор», «Суточный повар»…)
+  department  String // ключ отдела: AUP | KITCHEN | SERVICE | SECURITY | OTHER
+  schedule    String? // график работы, текстом: «с 09:00 до 21:00»
+  shiftHours  Int? // режим работы — часов в смене (подсказка при заполнении ячейки)
+  workPattern String? // выход работы, текстом: «6/1», «1/2», «0.4»
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  entries TimesheetEntry[]
+
+  @@index([department, sortOrder])
+}
+
+model TimesheetEntry {
+  id         String   @id @default(cuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date       DateTime @db.Date // стеночная дата смены (Алматы), UTC-полночь
+  planHours  Int? // план: часов в смене; null — по плану не в смене
+  factHours  Int? // факт: часов отработано; null — смены не было
+  updatedBy  String? // кто внёс последнее изменение (имя, текстом)
+  updatedAt  DateTime @updatedAt
+
+  @@unique([employeeId, date])
+  @@index([date])
+}
+
 // ───────────────────────── Settings — настройки заведения ──────────────
 // Одна строка (singleton, id = "singleton"): общие данные заведения и
 // редактируемые тексты публичной страницы заявок /book. Меняется в админке

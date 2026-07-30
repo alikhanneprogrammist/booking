@@ -31,3 +31,8 @@ export const DELIVERY_DISTRICTS = [
   'Алматинский', 'Байконурский', 'Есильский', 'Нуринский', 'Сарыаркинский', 'Сарайшык',
 ] as const;
 export type DeliveryDistrict = (typeof DELIVERY_DISTRICTS)[number];
+
+// Отделы табеля учёта рабочего времени (вкладка «Табель»); подписи — i18n
+// timesheet.dept.*. Порядок = порядок групп в таблице (как в экселе).
+export const TIMESHEET_DEPARTMENTS = ['AUP', 'KITCHEN', 'SERVICE', 'SECURITY', 'OTHER'] as const;
+export type TimesheetDepartment = (typeof TIMESHEET_DEPARTMENTS)[number];

@@ -3,6 +3,7 @@ import type {
   MockResource, MockAddon, MockClient, MockUser, MockBooking, ArchivePrepayment, DeliveryOrder,
 } from './types';
 import {DEFAULT_SETTINGS, SETTINGS_ID, type AppSettings} from './settings';
+import type {TimesheetEmployee} from './timesheet';
 
 /**
  * Серверный слой чтения (этап 2): запросы Prisma → DTO в форме Mock*-типов
@@ -263,4 +264,43 @@ export async function getClientBookings(clientId: string): Promise<MockBooking[]
     orderBy: {startAt: 'desc'},
   });
   return rows.map(toBooking);
+}
+
+/**
+ * Табель за месяц: активные сотрудники + скрытые, у которых в этом месяце
+ * есть записи (история не пропадает). Часы разложены по дням: plan/fact.
+ */
+export async function getTimesheetMonth(year: number, month: number): Promise<TimesheetEmployee[]> {
+  const from = new Date(Date.UTC(year, month - 1, 1));
+  const to = new Date(Date.UTC(year, month, 1));
+  const inMonth = {date: {gte: from, lt: to}};
+
+  const rows = await prisma.employee.findMany({
+    where: {OR: [{isActive: true}, {entries: {some: inMonth}}]},
+    include: {entries: {where: inMonth}},
+    orderBy: [{sortOrder: 'asc'}, {createdAt: 'asc'}],
+  });
+
+  return rows.map((e) => {
+    const plan: Record<number, number> = {};
+    const fact: Record<number, number> = {};
+    for (const en of e.entries) {
+      const day = en.date.getUTCDate();
+      if (en.planHours != null) plan[day] = en.planHours;
+      if (en.factHours != null) fact[day] = en.factHours;
+    }
+    return {
+      id: e.id,
+      name: e.name,
+      position: e.position,
+      department: e.department,
+      schedule: e.schedule,
+      shiftHours: e.shiftHours,
+      workPattern: e.workPattern,
+      isActive: e.isActive,
+      sortOrder: e.sortOrder,
+      plan,
+      fact,
+    };
+  });
 }

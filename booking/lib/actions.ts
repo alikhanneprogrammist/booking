@@ -11,7 +11,7 @@ import {
   createBooking, updateBooking, cancelBooking, BookingError, type BookingInput,
 } from './bookings';
 import {toClient, toResource, toAddon, toUser} from './queries';
-import {BOOKING_SOURCES, DELIVERY_DISTRICTS} from './enums';
+import {BOOKING_SOURCES, DELIVERY_DISTRICTS, TIMESHEET_DEPARTMENTS} from './enums';
 import type {MockResource, MockAddon} from './types';
 import {SETTINGS_ID, type AppSettings} from './settings';
 import {toAlmaty} from './time';
@@ -632,6 +632,130 @@ export async function clearBookingPrepayment(id: string) {
       },
     }),
   ]);
+  refresh();
+  return {ok: true as const};
+}
+
+// ───────────────────────── Табель учёта рабочего времени ───────────────
+// Сотрудники и ячейки «часы за день» (план/факт). Ведут все сотрудники
+// (как журнал доставки), удаление сотрудника — только ADMIN.
+
+export interface EmployeeInput {
+  name: string;
+  position: string;
+  department: string;
+  schedule?: string;
+  shiftHours?: number | null;
+  workPattern?: string;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
+// Общая проверка полей сотрудника; null — данные некорректны.
+function parseEmployeeInput(input: EmployeeInput) {
+  const name = (input.name ?? '').trim();
+  const position = (input.position ?? '').trim();
+  const department = TIMESHEET_DEPARTMENTS.find((d) => d === input.department);
+  const shiftHours =
+    input.shiftHours === null || input.shiftHours === undefined
+      ? null
+      : Math.round(Number(input.shiftHours));
+  if (
+    !name || !position || !department ||
+    (shiftHours !== null && (!Number.isFinite(shiftHours) || shiftHours < 1 || shiftHours > 24))
+  ) {
+    return null;
+  }
+  return {
+    name,
+    position,
+    department,
+    schedule: (input.schedule ?? '').trim() || null,
+    shiftHours,
+    workPattern: (input.workPattern ?? '').trim() || null,
+    isActive: input.isActive ?? true,
+  };
+}
+
+/** Новый сотрудник табеля — доступно всем сотрудникам. */
+export async function addEmployee(input: EmployeeInput) {
+  if (!(await currentUser())) return {ok: false as const, error: 'FORBIDDEN' as const};
+  const data = parseEmployeeInput(input);
+  if (!data) return {ok: false as const, error: 'INVALID' as const};
+
+  // В конец своего отдела (порядок групп задаёт TIMESHEET_DEPARTMENTS).
+  const last = await prisma.employee.findFirst({orderBy: {sortOrder: 'desc'}, select: {sortOrder: true}});
+  await prisma.employee.create({data: {...data, sortOrder: (last?.sortOrder ?? 0) + 1}});
+  refresh();
+  return {ok: true as const};
+}
+
+/** Правка карточки сотрудника (включая скрытие isActive) — все сотрудники. */
+export async function updateEmployee(id: string, input: EmployeeInput) {
+  if (!(await currentUser())) return {ok: false as const, error: 'FORBIDDEN' as const};
+  const data = parseEmployeeInput(input);
+  if (!data) return {ok: false as const, error: 'INVALID' as const};
+
+  const existing = await prisma.employee.findUnique({where: {id}, select: {id: true}});
+  if (!existing) return {ok: false as const, error: 'NOT_FOUND' as const};
+
+  await prisma.employee.update({where: {id}, data});
+  refresh();
+  return {ok: true as const};
+}
+
+/** Удаление сотрудника со всеми его сменами — только ADMIN. */
+export async function removeEmployee(id: string) {
+  await requireAdmin();
+  await prisma.employee.delete({where: {id}}); // TimesheetEntry — onDelete: Cascade
+  refresh();
+  return {ok: true as const};
+}
+
+export interface TimesheetCellInput {
+  employeeId: string;
+  date: string; // YYYY-MM-DD (стеночная дата Алматы)
+  mode: 'plan' | 'fact';
+  hours: number | null; // null — очистить ячейку (смены нет)
+}
+
+/**
+ * Ячейка табеля: часы сотрудника за день (план или факт). Пустая с обеих
+ * сторон запись удаляется; в updatedBy пишется, кто внёс изменение.
+ */
+export async function saveTimesheetCell(input: TimesheetCellInput) {
+  const user = await currentUser();
+  if (!user) return {ok: false as const, error: 'FORBIDDEN' as const};
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.date) || (input.mode !== 'plan' && input.mode !== 'fact')) {
+    return {ok: false as const, error: 'INVALID' as const};
+  }
+  const date = new Date(`${input.date}T00:00:00Z`);
+  const hours = input.hours === null ? null : Math.round(Number(input.hours));
+  if (Number.isNaN(date.getTime()) ||
+      (hours !== null && (!Number.isFinite(hours) || hours < 1 || hours > 24))) {
+    return {ok: false as const, error: 'INVALID' as const};
+  }
+
+  const employee = await prisma.employee.findUnique({where: {id: input.employeeId}, select: {id: true}});
+  if (!employee) return {ok: false as const, error: 'NOT_FOUND' as const};
+
+  const field = input.mode === 'plan' ? 'planHours' : 'factHours';
+  const where = {employeeId_date: {employeeId: input.employeeId, date}};
+
+  if (hours === null) {
+    const existing = await prisma.timesheetEntry.findUnique({where});
+    if (!existing) return {ok: true as const};
+    const other = input.mode === 'plan' ? existing.factHours : existing.planHours;
+    if (other === null) await prisma.timesheetEntry.delete({where});
+    else await prisma.timesheetEntry.update({where, data: {[field]: null, updatedBy: user.name ?? null}});
+  } else {
+    await prisma.timesheetEntry.upsert({
+      where,
+      create: {employeeId: input.employeeId, date, [field]: hours, updatedBy: user.name ?? null},
+      update: {[field]: hours, updatedBy: user.name ?? null},
+    });
+  }
   refresh();
   return {ok: true as const};
 }

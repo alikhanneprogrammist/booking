@@ -4,6 +4,7 @@ import {computePrice, type PricingResource} from '../lib/pricing';
 import {formatPhoneDraft, normalizePhone} from '../lib/phone';
 import {mergeTags} from '../lib/tags';
 import {shiftStart, shiftAnchor} from '../lib/calendar';
+import {monthDays, rowTotals, parseMonthParam, shiftMonth} from '../lib/timesheet';
 
 let failed = 0;
 function check(name: string, cond: boolean, got?: unknown) {
@@ -106,6 +107,33 @@ check('пустой incoming → существующие без изменен�
   JSON.stringify(mergeTags(['инста'], [])) === JSON.stringify(['инста']));
 check('пустой existing → только новые',
   JSON.stringify(mergeTags([], ['VIP'])) === JSON.stringify(['VIP']));
+
+console.log('timesheet.ts (вкладка «Табель»)');
+{
+  const july = monthDays(2026, 7);
+  check('июль 2026 — 31 день', july.length === 31, july.length);
+  check('3 июля 2026 (пт) — выходной', july[2].isWeekend === true);
+  check('4 июля 2026 (сб) — выходной', july[3].isWeekend === true);
+  check('5 июля 2026 (вс) — будни', july[4].isWeekend === false);
+  check('февраль 2028 (високосный) — 29 дней', monthDays(2028, 2).length === 29);
+
+  const tot = rowTotals({1: 12, 3: 24, 5: 9});
+  check('итог строки: 3 дня, 45 часов', tot.days === 3 && tot.hours === 45, tot);
+  check('пустая строка — нули', JSON.stringify(rowTotals({})) === JSON.stringify({days: 0, hours: 0}));
+
+  const fb = {year: 2026, month: 7};
+  check('parseMonthParam: 2026-03 разбирается',
+    JSON.stringify(parseMonthParam('2026-03', fb)) === JSON.stringify({year: 2026, month: 3}));
+  check('parseMonthParam: мусор → fallback',
+    JSON.stringify(parseMonthParam('abc', fb)) === JSON.stringify(fb));
+  check('parseMonthParam: 2026-13 → fallback',
+    JSON.stringify(parseMonthParam('2026-13', fb)) === JSON.stringify(fb));
+
+  check('shiftMonth: янв −1 → дек прошлого года',
+    JSON.stringify(shiftMonth(2026, 1, -1)) === JSON.stringify({year: 2025, month: 12}));
+  check('shiftMonth: дек +1 → янв следующего',
+    JSON.stringify(shiftMonth(2026, 12, 1)) === JSON.stringify({year: 2027, month: 1}));
+}
 
 console.log(failed === 0 ? '\nВСЕ ТЕСТЫ ПРОЙДЕНЫ ✅' : `\n${failed} ТЕСТ(ОВ) УПАЛО ❌`);
 process.exit(failed === 0 ? 0 : 1);

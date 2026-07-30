@@ -11,6 +11,7 @@ const items = [
   {href: '/prepayments', key: 'prepayments', adminOnly: false},
   {href: '/delivery', key: 'delivery', adminOnly: false},
   {href: '/attendance', key: 'attendance', adminOnly: false},
+  {href: '/timesheet', key: 'timesheet', adminOnly: false},
   {href: '/settings', key: 'admin', adminOnly: true},
 ] as const;
 
@@ -66,6 +67,12 @@ const ICONS: Record<(typeof items)[number]['key'], React.ReactNode> = {
     <>
       <path d="M22 7l-8.5 8.5-5-5L2 17" />
       <path d="M16 7h6v6" />
+    </>
+  ),
+  timesheet: (
+    <>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 6v6l4 2" />
     </>
   ),
   admin: (
