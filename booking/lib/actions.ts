@@ -11,7 +11,7 @@ import {
   createBooking, updateBooking, cancelBooking, BookingError, type BookingInput,
 } from './bookings';
 import {toClient, toResource, toAddon, toUser} from './queries';
-import {BOOKING_SOURCES, DELIVERY_DISTRICTS, TIMESHEET_DEPARTMENTS} from './enums';
+import {BOOKING_SOURCES, DELIVERY_DISTRICTS, PAYMENT_METHODS, TIMESHEET_DEPARTMENTS} from './enums';
 import type {MockResource, MockAddon} from './types';
 import {SETTINGS_ID, type AppSettings} from './settings';
 import {toAlmaty} from './time';
@@ -468,11 +468,8 @@ export interface ArchivePrepaymentInput {
   note?: string;
 }
 
-/** Ручная строка журнала предоплат — доступно всем сотрудникам. */
-export async function addArchivePrepayment(input: ArchivePrepaymentInput) {
-  const user = await currentUser();
-  if (!user) return {ok: false as const, error: 'FORBIDDEN' as const};
-
+// Общая проверка полей строки журнала предоплат; null — данные некорректны.
+function parseArchivePrepaymentInput(input: ArchivePrepaymentInput) {
   const amount = Math.round(Number(input.amount));
   const guest = (input.guest ?? '').trim();
   const resourceLabel = (input.resourceLabel ?? '').trim();
@@ -482,21 +479,44 @@ export async function addArchivePrepayment(input: ArchivePrepaymentInput) {
     !Number.isFinite(amount) || amount <= 0 || !guest || !resourceLabel ||
     Number.isNaN(paidAt.getTime()) || Number.isNaN(visitAt.getTime())
   ) {
-    return {ok: false as const, error: 'INVALID' as const};
+    return null;
   }
+  return {
+    amount,
+    guest,
+    resourceLabel,
+    paidAt,
+    visitAt,
+    paymentMethod: PREPAY_METHODS.find((m) => m === input.paymentMethod) ?? null,
+    note: (input.note ?? '').trim() || null,
+  };
+}
+
+/** Ручная строка журнала предоплат — доступно всем сотрудникам. */
+export async function addArchivePrepayment(input: ArchivePrepaymentInput) {
+  const user = await currentUser();
+  if (!user) return {ok: false as const, error: 'FORBIDDEN' as const};
+
+  const data = parseArchivePrepaymentInput(input);
+  if (!data) return {ok: false as const, error: 'INVALID' as const};
 
   await prisma.prepaymentArchive.create({
-    data: {
-      amount,
-      guest,
-      resourceLabel,
-      paidAt,
-      visitAt,
-      paymentMethod: PREPAY_METHODS.find((m) => m === input.paymentMethod) ?? null,
-      note: (input.note ?? '').trim() || null,
-      manager: user.name ?? null, // ответственный — кто внёс
-    },
+    data: {...data, manager: user.name ?? null}, // ответственный — кто внёс
   });
+  refresh();
+  return {ok: true as const};
+}
+
+/** Правка строки журнала предоплат — только ADMIN (manager остаётся автором). */
+export async function updateArchivePrepayment(id: string, input: ArchivePrepaymentInput) {
+  await requireAdmin();
+  const data = parseArchivePrepaymentInput(input);
+  if (!data) return {ok: false as const, error: 'INVALID' as const};
+
+  const existing = await prisma.prepaymentArchive.findUnique({where: {id}, select: {id: true}});
+  if (!existing) return {ok: false as const, error: 'NOT_FOUND' as const};
+
+  await prisma.prepaymentArchive.update({where: {id}, data});
   refresh();
   return {ok: true as const};
 }
@@ -608,6 +628,60 @@ export async function deliveryDistrictReport() {
 export async function removeDeliveryOrder(id: string) {
   await requireAdmin();
   await prisma.deliveryOrder.delete({where: {id}});
+  refresh();
+  return {ok: true as const};
+}
+
+export interface BookingPrepaymentInput {
+  amount: number;
+  paymentMethod?: string | null;
+  paidAt: Date;
+}
+
+/**
+ * Правка предоплаты брони из журнала «Предоплаты» — только ADMIN.
+ * Меняются сумма/тип оплаты/дата получения; обнуление — clearBookingPrepayment.
+ * Остальные поля (гость, дата посещения) правятся в самой брони в календаре.
+ * Изменения пишутся в журнал аудита брони.
+ */
+export async function updateBookingPrepayment(id: string, input: BookingPrepaymentInput) {
+  const user = await requireAdmin();
+
+  const amount = Math.round(Number(input.amount));
+  const paidAt = new Date(input.paidAt);
+  if (!Number.isFinite(amount) || amount <= 0 || Number.isNaN(paidAt.getTime())) {
+    return {ok: false as const, error: 'INVALID' as const};
+  }
+  const paymentMethod = PAYMENT_METHODS.find((m) => m === input.paymentMethod) ?? null;
+
+  const b = await prisma.booking.findUnique({
+    where: {id},
+    select: {prepayment: true, paymentMethod: true, prepaidAt: true},
+  });
+  if (!b) return {ok: false as const, error: 'NOT_FOUND' as const};
+
+  const changes: {field: string; from: string | number | null; to: string | number | null}[] = [];
+  if (Number(b.prepayment) !== amount) {
+    changes.push({field: 'prepayment', from: Number(b.prepayment), to: amount});
+  }
+  if ((b.paymentMethod ?? null) !== paymentMethod) {
+    changes.push({field: 'paymentMethod', from: b.paymentMethod ?? null, to: paymentMethod});
+  }
+  if ((b.prepaidAt?.getTime() ?? null) !== paidAt.getTime()) {
+    changes.push({
+      field: 'prepaidAt',
+      from: b.prepaidAt?.toISOString() ?? null,
+      to: paidAt.toISOString(),
+    });
+  }
+  if (changes.length === 0) return {ok: true as const};
+
+  await prisma.$transaction([
+    prisma.booking.update({where: {id}, data: {prepayment: amount, paymentMethod, prepaidAt: paidAt}}),
+    prisma.bookingAudit.create({
+      data: {bookingId: id, userId: user.id!, action: 'UPDATE', changes: changes as Prisma.InputJsonValue},
+    }),
+  ]);
   refresh();
   return {ok: true as const};
 }

@@ -12,7 +12,7 @@ import type {
 
 // Единая строка журнала: бронь с предоплатой (ручной ввод) или строка архива
 // (разовый импорт из экселя — clientId нет, зал текстом как в экселе).
-type JournalRow = {
+export type JournalRow = {
   id: string;
   amount: number;
   method?: PaymentMethod;
@@ -154,6 +154,7 @@ export default function PrepaymentsView({
   const chipCls = 'inline-block rounded px-1.5 py-0.5 text-[11px] font-medium ring-1';
 
   const [showAdd, setShowAdd] = useState(false);
+  const [editRow, setEditRow] = useState<JournalRow | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Удаление строки журнала (только ADMIN): архив/ручной ввод удаляется целиком,
@@ -261,7 +262,7 @@ export default function PrepaymentsView({
                     </button>
                   </th>
                 ))}
-                {isAdmin && <th className="w-8 px-2 py-2" />}
+                {isAdmin && <th className="w-14 px-2 py-2" />}
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -289,7 +290,10 @@ export default function PrepaymentsView({
                       {r.manager ? <span className={`${chipCls} ${managerChip(r.manager)}`}>{r.manager}</span> : '—'}
                     </td>
                     {isAdmin && (
-                      <td className="px-2 py-2 text-center">
+                      <td className="whitespace-nowrap px-2 py-2 text-center">
+                        <button onClick={() => setEditRow(r)}
+                          aria-label={t('editRow')} title={t('editRow')}
+                          className="mr-2 text-muted hover:text-foreground">✎</button>
                         <button onClick={() => removeRow(r)} disabled={deletingId === r.id}
                           aria-label={t('deleteRow')} title={t('deleteRow')}
                           className="text-muted hover:text-red-600 disabled:opacity-50">✕</button>
@@ -303,7 +307,16 @@ export default function PrepaymentsView({
         </div>
       )}
 
-      {showAdd && <AddPrepaymentDialog resources={resources} onClose={() => setShowAdd(false)} />}
+      {(showAdd || editRow) && (
+        <AddPrepaymentDialog
+          resources={resources}
+          row={editRow ?? undefined}
+          onClose={() => {
+            setShowAdd(false);
+            setEditRow(null);
+          }}
+        />
+      )}
     </div>
   );
 }
