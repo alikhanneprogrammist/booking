@@ -6,11 +6,11 @@ import {useRouter} from '@/i18n/navigation';
 import {markVpsPaid} from '@/lib/actions';
 
 /**
- * Баннер-напоминание об оплате VPS (до 3 числа каждого месяца, все сотрудники):
- * янтарный с 1-го числа, красный после 3-го без отметки. «Оплачено» скрывает
- * его для всех до следующего месяца.
+ * Баннер-напоминание об оплате VPS (до vpsPayDay числа каждого месяца, все
+ * сотрудники): янтарный с 1-го числа, красный после срока — с датой ближайшего
+ * дедлайна («до 3 августа»). «Оплачено» скрывает его для всех до след. месяца.
  */
-export default function VpsReminder({overdue, day}: {overdue: boolean; day: number}) {
+export default function VpsReminder({overdue, deadline}: {overdue: boolean; deadline: string}) {
   const t = useTranslations('reminder');
   const router = useRouter();
   const [saving, setSaving] = useState(false);
@@ -34,7 +34,7 @@ export default function VpsReminder({overdue, day}: {overdue: boolean; day: numb
           : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-300'
       }`}
     >
-      <span>💳 {overdue ? t('vpsOverdue', {day}) : t('vps', {day})}</span>
+      <span>💳 {overdue ? t('vpsOverdue', {deadline}) : t('vps', {deadline})}</span>
       <button
         onClick={paid}
         disabled={saving}

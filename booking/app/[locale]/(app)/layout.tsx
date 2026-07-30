@@ -1,4 +1,4 @@
-import {getTranslations} from 'next-intl/server';
+import {getLocale, getTranslations} from 'next-intl/server';
 import BrandLogo from '@/components/BrandLogo';
 import Sidebar from '@/components/Sidebar';
 import SidebarShell from '@/components/SidebarShell';
@@ -20,12 +20,20 @@ export default async function AppShell({
   const settings = await getSettings();
 
   // Напоминание об оплате VPS (до settings.vpsPayDay числа): показываем, пока
-  // текущий месяц не отмечен «Оплачено»; после срока — красное «просрочено».
+  // текущий месяц не отмечен «Оплачено»; после срока — красное и с датой
+  // ближайшего дедлайна уже следующего месяца («до 3 августа»).
   const w = toAlmaty(new Date());
   const monthKey = `${w.getFullYear()}-${String(w.getMonth() + 1).padStart(2, '0')}`;
   const vpsPaidMonth = await getVpsPaidMonth();
   const showVps = vpsPaidMonth !== monthKey;
   const vpsOverdue = w.getDate() > settings.vpsPayDay;
+  const deadline = new Date(Date.UTC(
+    w.getFullYear(), w.getMonth() + (vpsOverdue ? 1 : 0), settings.vpsPayDay,
+  ));
+  const locale = await getLocale();
+  const vpsDeadline = deadline.toLocaleDateString(locale === 'kk' ? 'kk-KZ' : 'ru-RU', {
+    day: 'numeric', month: 'long', timeZone: 'UTC',
+  });
 
   // Счётчик для бейджа «Дни рождения» — клиенты с ДР в ближайшие 7 дней (Алматы).
   const clients = await getClients();
@@ -88,7 +96,7 @@ export default async function AppShell({
       sidebar={sidebar}
     >
       <div className="flex h-full flex-col">
-        {showVps && <VpsReminder overdue={vpsOverdue} day={settings.vpsPayDay} />}
+        {showVps && <VpsReminder overdue={vpsOverdue} deadline={vpsDeadline} />}
         <div className="min-h-0 flex-1">{children}</div>
       </div>
     </SidebarShell>
