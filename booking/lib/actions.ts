@@ -170,6 +170,32 @@ export async function saveBooking(input: BookingInput & {id?: string}) {
   }
 }
 
+/**
+ * Растягивание брони в календаре (drag за нижний край): меняем только endAt.
+ * HOURLY — total пересчитается в updateBooking (авторасчёт по составу брони);
+ * остальные тарифы — фиксируем прежний total, чтобы не затирать ручную сумму
+ * (CUSTOM при пересчёте обнулился бы).
+ */
+export async function resizeBooking(id: string, endAt: Date) {
+  const user = await currentUser();
+  if (!user) return {ok: false as const, error: 'FORBIDDEN' as const};
+  const existing = await prisma.booking.findUnique({where: {id}});
+  if (!existing) return {ok: false as const, error: 'NOT_FOUND' as const};
+  try {
+    const patch = existing.tariff === 'HOURLY'
+      ? {endAt}
+      : {endAt, total: Number(existing.total)};
+    await updateBooking(id, patch, user.id);
+    refresh();
+    return {ok: true as const};
+  } catch (e) {
+    if (e instanceof BookingError) {
+      return {ok: false as const, error: e.code, message: e.message};
+    }
+    throw e;
+  }
+}
+
 export async function cancelBookingAction(id: string) {
   const user = await currentUser();
   if (!user) return {ok: false as const, error: 'FORBIDDEN' as const};

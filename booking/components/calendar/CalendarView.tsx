@@ -3,6 +3,7 @@
 import {useEffect, useMemo, useState} from 'react';
 import {useLocale, useTranslations} from 'next-intl';
 import {useRouter} from '@/i18n/navigation';
+import {resizeBooking} from '@/lib/actions';
 import {TIMEZONE} from '@/lib/time';
 import {almatyDayStart, addDays, weekStart, fmtDayHeader, fmtDayNum, toLocalInput, shiftAnchor, shiftStart} from '@/lib/calendar';
 import DatePickerPopup from './DatePickerPopup';
@@ -86,6 +87,13 @@ export default function CalendarView({
     setDialog({open: true, mode: 'create', prefill: {resourceId, startAt}});
   const openEdit = (booking: MockBooking) => setDialog({open: true, mode: 'edit', booking});
 
+  // Растягивание брони за нижний край (дневной вид): сервер меняет endAt и цену.
+  async function handleResize(id: string, endAt: Date) {
+    const res = await resizeBooking(id, endAt);
+    if (res.ok) router.refresh();
+    return res;
+  }
+
   const btn = 'rounded-md border border-border px-2.5 py-1.5 text-sm font-medium hover:bg-subtle';
 
   return (
@@ -148,8 +156,10 @@ export default function CalendarView({
             addons={addons}
             locale={locale}
             now={now}
+            minBookingHours={minBookingHours}
             onSlotClick={openCreate}
             onBookingClick={openEdit}
+            onResize={handleResize}
           />
         ) : (
           <WeekTimeline

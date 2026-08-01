@@ -1,6 +1,6 @@
 'use client';
 
-import {useEffect, useRef} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import {useTranslations} from 'next-intl';
 import {
   HOUR_PX, fmtHour, minutesFromDayStart, addDays, SHIFT_START_HOUR,
@@ -11,7 +11,7 @@ import BookingBlock from './BookingBlock';
 const KINDS = ['COMPLEX', 'KARAOKE'] as const;
 
 export default function ResourceTimeline({
-  dayStart, resources, bookings, clients, addons, locale, now, onSlotClick, onBookingClick,
+  dayStart, resources, bookings, clients, addons, locale, now, minBookingHours, onSlotClick, onBookingClick, onResize,
 }: {
   dayStart: Date;
   resources: MockResource[];
@@ -20,10 +20,13 @@ export default function ResourceTimeline({
   addons: MockAddon[];
   locale: string;
   now: Date;
+  minBookingHours: number;
   onSlotClick: (resourceId: string, slot: Date) => void;
   onBookingClick: (b: MockBooking) => void;
+  onResize: (id: string, endAt: Date) => Promise<{ok: boolean; error?: string; message?: string}>;
 }) {
   const tg = useTranslations('groups');
+  const tb = useTranslations('booking');
   const dayEnd = addDays(dayStart, 1);
   const showNow = now >= dayStart && now < dayEnd;
   const nowTop = (minutesFromDayStart(now, dayStart) / 60) * HOUR_PX;
@@ -46,6 +49,70 @@ export default function ResourceTimeline({
     const minutes = ((e.clientY - rect.top) / HOUR_PX) * 60;
     const snapped = Math.max(0, Math.floor(minutes / 30) * 30);
     onSlotClick(resourceId, new Date(dayStart.getTime() + snapped * 60000));
+  }
+
+  // ── Растягивание брони за нижний край (шаг 30 мин) ──────────────────────
+  const [resizing, setResizing] = useState<{bookingId: string; previewEnd: Date; saving: boolean} | null>(null);
+  // Свежие данные с сервера пришли — превью больше не нужно.
+  useEffect(() => setResizing(null), [bookings]);
+
+  function startResize(b: MockBooking, r: MockResource, e: React.PointerEvent<HTMLDivElement>) {
+    if (resizing?.saving) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const el = e.currentTarget;
+    el.setPointerCapture(e.pointerId);
+
+    const startY = e.clientY;
+    const origEndMin = minutesFromDayStart(b.endAt, dayStart);
+    const startMin = minutesFromDayStart(b.startAt, dayStart);
+    // Нижняя граница: минимум длительности для почасового тарифа, иначе полчаса.
+    const minHours = b.tariff === 'HOURLY' ? Math.max(r.minHours, minBookingHours) : 0.5;
+    const minMin = startMin + minHours * 60;
+    // Верхняя граница: конец суток смены и начало следующей брони этого объекта.
+    const nextStarts = bookings
+      .filter((x) => x.resourceId === b.resourceId && x.id !== b.id && x.startAt >= b.endAt)
+      .map((x) => minutesFromDayStart(x.startAt, dayStart));
+    const maxMin = Math.min(24 * 60, ...nextStarts);
+
+    let currentEnd = b.endAt;
+    const detach = () => {
+      el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerup', up);
+      el.removeEventListener('pointercancel', cancel);
+    };
+    const move = (ev: PointerEvent) => {
+      const deltaMin = ((ev.clientY - startY) / HOUR_PX) * 60;
+      const snapped = Math.round((origEndMin + deltaMin) / 30) * 30;
+      const clamped = Math.min(maxMin, Math.max(minMin, snapped));
+      currentEnd = new Date(dayStart.getTime() + clamped * 60000);
+      setResizing({bookingId: b.id, previewEnd: currentEnd, saving: false});
+    };
+    const up = async () => {
+      detach();
+      if (currentEnd.getTime() === b.endAt.getTime()) {
+        setResizing(null);
+        return;
+      }
+      setResizing({bookingId: b.id, previewEnd: currentEnd, saving: true});
+      const res = await onResize(b.id, currentEnd);
+      if (!res.ok) {
+        const known: Record<string, string> = {
+          OVERLAP: tb('occupied'), INVALID_RANGE: tb('invalidRange'), MIN_DURATION: tb('minDuration'),
+        };
+        alert(known[res.error ?? ''] ?? res.message ?? res.error);
+        setResizing(null);
+      }
+      // При успехе превью держим до прихода свежего bookings (сброс в useEffect выше).
+    };
+    const cancel = () => {
+      detach();
+      setResizing(null);
+    };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', cancel);
+    setResizing({bookingId: b.id, previewEnd: b.endAt, saving: false});
   }
 
   // Авто-скролл при смене дня: к «сейчас» (если сегодня) или к началу смены (10:00).
@@ -126,22 +193,36 @@ export default function ResourceTimeline({
               )}
               {/* Брони этого объекта */}
               {dayBookings.filter((b) => b.resourceId === r.id).map((b) => {
-                const vStart = b.startAt < dayStart ? dayStart : b.startAt;
-                const vEnd = b.endAt > dayEnd ? dayEnd : b.endAt;
+                // Во время растягивания рисуем бронь с предварительным endAt.
+                const bEff = resizing?.bookingId === b.id ? {...b, endAt: resizing.previewEnd} : b;
+                const vStart = bEff.startAt < dayStart ? dayStart : bEff.startAt;
+                const vEnd = bEff.endAt > dayEnd ? dayEnd : bEff.endAt;
                 const top = (minutesFromDayStart(vStart, dayStart) / 60) * HOUR_PX;
-                const height = ((vEnd.getTime() - vStart.getTime()) / 3600_000) * HOUR_PX;
+                const height = Math.max(((vEnd.getTime() - vStart.getTime()) / 3600_000) * HOUR_PX, 18);
+                const clipped = bEff.endAt > dayEnd;
                 return (
-                  <BookingBlock
-                    key={b.id}
-                    booking={b}
-                    resource={r}
-                    client={clients.find((c) => c.id === b.clientId)}
-                    addons={addons}
-                    locale={locale}
-                    style={{top, height: Math.max(height, 18), left: 4, right: 4}}
-                    clipped={b.endAt > dayEnd}
-                    onClick={() => onBookingClick(b)}
-                  />
+                  <div key={b.id} className="contents">
+                    <BookingBlock
+                      booking={bEff}
+                      resource={r}
+                      client={clients.find((c) => c.id === b.clientId)}
+                      addons={addons}
+                      locale={locale}
+                      style={{top, height, left: 4, right: 4}}
+                      clipped={clipped}
+                      onClick={() => onBookingClick(b)}
+                    />
+                    {/* Ручка растягивания — сиблинг (корень блока — <button>, вложить нельзя).
+                        У обрезанных снизу броней («продолжается ↓») ручки нет. */}
+                    {!clipped && (
+                      <div
+                        className="absolute z-10 cursor-ns-resize rounded-b-md hover:bg-black/15 dark:hover:bg-white/25"
+                        style={{top: top + height - 7, height: 10, left: 4, right: 4, touchAction: 'none'}}
+                        onClick={(e) => e.stopPropagation()}
+                        onPointerDown={(e) => startResize(b, r, e)}
+                      />
+                    )}
+                  </div>
                 );
               })}
             </div>
