@@ -11,14 +11,14 @@ export default async function CalendarPage({
   searchParams,
 }: {
   params: Promise<{locale: string}>;
-  searchParams: Promise<{d?: string}>;
+  searchParams: Promise<{d?: string; b?: string}>;
 }) {
   const {locale} = await params;
   setRequestLocale(locale);
 
   // Просматриваемый день из URL (?d=YYYY-MM-DD, стеночная дата Алматы); мусор → сегодня.
   // Без ?d — дата ТЕКУЩЕЙ СМЕНЫ (10:00→10:00): ночью до 10 утра это вчерашний день.
-  const {d} = await searchParams;
+  const {d, b} = await searchParams;
   const explicitDate = Boolean(d && /^\d{4}-\d{2}-\d{2}$/.test(d));
   const parsed = explicitDate ? fromLocalInput(`${d}T00:00`) : shiftStart(new Date());
   const viewDate = almatyDayStart(Number.isNaN(parsed.getTime()) ? shiftStart(new Date()) : parsed);
@@ -47,6 +47,7 @@ export default async function CalendarPage({
         bookings={bookings}
         viewDate={viewDate}
         explicitDate={explicitDate}
+        openBookingId={b}
         minBookingHours={settings.minBookingHours}
       />
     </div>

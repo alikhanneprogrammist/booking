@@ -8,7 +8,7 @@ import {sourceChip, tagChip} from '@/lib/ui';
 import {formatBirthday} from '@/lib/birthdays';
 import type {MockClient, MockBooking, MockResource} from '@/lib/types';
 import {TIMEZONE} from '@/lib/time';
-import {fmtTime} from '@/lib/calendar';
+import {fmtTime, shiftStart, almatyDayStart, toLocalInput} from '@/lib/calendar';
 import StatusBadge from '@/components/calendar/StatusBadge';
 import ClientDialog from './ClientDialog';
 
@@ -143,8 +143,10 @@ export default function ClientCard({
         <div className="divide-y divide-border overflow-hidden rounded-lg border border-border">
           {history.map((b) => {
             const r = resOf(b.resourceId);
-            return (
-              <div key={b.id} className="flex items-center gap-3 px-4 py-3 text-sm">
+            // Отменённые в календаре не показываются — проваливаться некуда.
+            const linked = b.status !== 'CANCELLED';
+            const row = (
+              <>
                 <div className="w-24 shrink-0 text-muted">{fmtDate(b.startAt)}</div>
                 <div className="w-28 shrink-0 tabular-nums text-muted">
                   {fmtTime(b.startAt, locale)}–{fmtTime(b.endAt, locale)}
@@ -163,7 +165,16 @@ export default function ClientCard({
                   </span>
                 )}
                 <div className="w-24 shrink-0 text-right tabular-nums">{b.total.toLocaleString()} ₸</div>
-              </div>
+              </>
+            );
+            const rowClass = 'flex items-center gap-3 px-4 py-3 text-sm';
+            if (!linked) return <div key={b.id} className={rowClass}>{row}</div>;
+            // Дата дня календаря — по смене 10:00→10:00: ночная бронь лежит на «вчерашнем» дне.
+            const day = toLocalInput(almatyDayStart(shiftStart(b.startAt))).slice(0, 10);
+            return (
+              <Link key={b.id} href={`/calendar?d=${day}&b=${b.id}`} className={`${rowClass} hover:bg-subtle`}>
+                {row}
+              </Link>
             );
           })}
         </div>

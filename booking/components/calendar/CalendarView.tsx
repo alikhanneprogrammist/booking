@@ -19,7 +19,7 @@ type Dialog =
   | {open: true; mode: 'edit'; booking: MockBooking};
 
 export default function CalendarView({
-  resources, addons, clients, bookings, viewDate, explicitDate, minBookingHours,
+  resources, addons, clients, bookings, viewDate, explicitDate, minBookingHours, openBookingId,
 }: {
   resources: MockResource[];
   addons: MockAddon[];
@@ -28,6 +28,7 @@ export default function CalendarView({
   viewDate: Date;
   explicitDate: boolean; // день выбран явно через ?d — не перескакивать в полночь
   minBookingHours: number; // глобальный «пол» длительности из настроек заведения
+  openBookingId?: string; // ?b= — сразу открыть диалог этой брони (deep-link из карточки клиента)
 }) {
   const locale = useLocale();
   const t = useTranslations('calendar');
@@ -47,6 +48,16 @@ export default function CalendarView({
     const id = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(id);
   }, []);
+
+  // Deep-link ?b=<id>: открываем диалог брони и сразу убираем b из URL,
+  // чтобы закрытие диалога или refresh не открывали его заново.
+  useEffect(() => {
+    if (!openBookingId) return;
+    const target = bookings.find((x) => x.id === openBookingId);
+    if (target) setDialog({open: true, mode: 'edit', booking: target});
+    router.replace(`/calendar?d=${toLocalInput(almatyDayStart(viewDate)).slice(0, 10)}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openBookingId]);
 
   // Вкладка, открытая через границу смены (10:00): если день не выбран явно (?d),
   // в 10 утра (Алматы) перечитываем сервер — календарь сам покажет новую смену.
@@ -118,7 +129,7 @@ export default function CalendarView({
 
       {/* Легенда статусов: фон блока брони = цвет статуса */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border px-4 py-1.5 text-[11px] text-muted">
-        {BOOKING_STATUSES.map((s) => (
+        {BOOKING_STATUSES.filter((s) => s !== 'CANCELLED').map((s) => (
           <span key={s} className="flex items-center gap-1">
             <span className={`h-2 w-2 rounded-full ${STATUS_DOT[s]}`} />
             {ts(s)}
