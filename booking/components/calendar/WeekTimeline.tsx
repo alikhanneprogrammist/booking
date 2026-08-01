@@ -81,7 +81,7 @@ export default function WeekTimeline({
 
           {days.map((dayStart) => {
             const dayEnd = addDays(dayStart, 1);
-            // Отменённые НЕ фильтруем — как в дневном виде (красные полупрозрачные).
+            // Отменённые сюда не попадают — отфильтрованы в getBookingsBetween.
             const items = bookings
               .filter((b) => b.startAt < dayEnd && b.endAt > dayStart)
               .map((b) => ({

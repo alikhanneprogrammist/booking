@@ -126,10 +126,10 @@ export async function getUsers(): Promise<MockUser[]> {
   return rows.map(toUser);
 }
 
-/** Брони, пересекающие окно [from, to) — для календаря (все статусы, вкл. отменённые). */
+/** Брони, пересекающие окно [from, to) — для календаря (кроме отменённых). */
 export async function getBookingsBetween(from: Date, to: Date): Promise<MockBooking[]> {
   const rows = await prisma.booking.findMany({
-    where: {startAt: {lt: to}, endAt: {gt: from}},
+    where: {startAt: {lt: to}, endAt: {gt: from}, status: {not: 'CANCELLED'}},
     include: {addons: true},
     orderBy: {startAt: 'asc'},
   });
