@@ -7,6 +7,7 @@ import type {MockBooking, MockResource, MockClient, MockAddon, DeliveryOrder} fr
 import {
   kpis, byResource, byEnum, topClients, addonStats,
   prepaymentTotal, byPayment, byDay, pointsByDay, toMonthly, byWeekday,
+  discountsTotal, outstandingTotal,
   type CountRevenue,
 } from '@/lib/analytics';
 import {sectionHead} from '@/lib/ui';
@@ -14,7 +15,7 @@ import {sectionHead} from '@/lib/ui';
 export type Preset = 'today' | 'week' | 'month' | '30d' | 'custom';
 
 export default function AnalyticsView({
-  bookings, prepaid, resources, clients, addons, delivery, preset, rangeFrom, rangeTo,
+  bookings, prepaid, resources, clients, addons, delivery, prevBookings, prevPrepaid, preset, rangeFrom, rangeTo,
 }: {
   bookings: MockBooking[]; // уже отфильтрованы по периоду на сервере (без импортных нулевой длительности)
   prepaid: MockBooking[]; // предоплаты периода по дате получения денег (вкл. импортированную историю)
@@ -22,6 +23,8 @@ export default function AnalyticsView({
   clients: MockClient[];
   addons: MockAddon[];
   delivery: DeliveryOrder[]; // заказы внутренней доставки периода (вкладка «Доставка»)
+  prevBookings: MockBooking[]; // предыдущий период той же длины — для дельт на KPI
+  prevPrepaid: MockBooking[];
   preset: Preset;
   rangeFrom: string; // активный диапазон YYYY-MM-DD (конец включительно) —
   rangeTo: string; //   начальные значения полей выбора произвольного периода
@@ -30,6 +33,7 @@ export default function AnalyticsView({
   const ts = useTranslations('status');
   const tsrc = useTranslations('source');
   const tpm = useTranslations('payment');
+  const tt = useTranslations('tariff');
   const locale = useLocale();
   const router = useRouter();
 
@@ -66,6 +70,29 @@ export default function AnalyticsView({
   const resRows = useMemo(() => byResource(active), [active]);
   const statusRows = useMemo(() => byEnum(bookings, 'status'), [bookings]);
   const sourceRows = useMemo(() => byEnum(active, 'source'), [active]);
+  const tariffRows = useMemo(() => byEnum(active, 'tariff'), [active]);
+
+  // Прошлый период (та же длина, впритык до текущего) — только для дельт на KPI.
+  const prevActive = useMemo(
+    () => prevBookings.filter((b) => b.status !== 'CANCELLED' && b.status !== 'NO_SHOW'),
+    [prevBookings],
+  );
+  const pk = useMemo(() => kpis(prevActive), [prevActive]);
+
+  // KPI-плитки: значение за период + числа текущего/прошлого периода для дельты.
+  const prepTotal = prepaymentTotal(prepaid);
+  const prevPrepTotal = prepaymentTotal(prevPrepaid);
+  const discounts = discountsTotal(active);
+  const outstanding = outstandingTotal(active);
+  const kpiTiles = [
+    {label: t('kpi.bookings'), value: k.count.toLocaleString(locale), cur: k.count, prev: pk.count},
+    {label: t('kpi.revenue'), value: money(k.revenue), cur: k.revenue, prev: pk.revenue},
+    {label: t('kpi.avgCheck'), value: money(k.avgCheck), cur: k.avgCheck, prev: pk.avgCheck},
+    {label: t('kpi.guests'), value: k.guests.toLocaleString(locale), cur: k.guests, prev: pk.guests},
+    {label: t('kpi.prepayments'), value: money(prepTotal), cur: prepTotal, prev: prevPrepTotal},
+    {label: t('kpi.discounts'), value: money(discounts), cur: discounts, prev: discountsTotal(prevActive)},
+    {label: t('kpi.outstanding'), value: money(outstanding), cur: outstanding, prev: outstandingTotal(prevActive)},
+  ];
   const top = useMemo(() => topClients(active, 5), [active]);
   const addonRows = useMemo(() => addonStats(active), [active]);
   const paymentRows = useMemo(() => byPayment(prepaid), [prepaid]);
@@ -96,6 +123,69 @@ export default function AnalyticsView({
       locale === 'kk' ? 'kk-KZ' : 'ru-RU',
       {weekday: 'long', timeZone: 'UTC'},
     );
+
+  // Выгрузка всей аналитики в .xlsx: один лист, секции друг под другом.
+  async function downloadXlsx() {
+    const {exportAnalytics} = await import('./exportAnalytics');
+    const crHeader = [t('export.name'), t('export.count'), t('export.revenue')];
+    const cr = (rows: CountRevenue[], label: (v: string) => string) =>
+      rows.map((r) => [label(r.key), r.count, r.revenue]);
+    await exportAnalytics({
+      fileName: `${t('fileName')}-${rangeFrom}-${rangeTo}.xlsx`,
+      sheetName: t('title'),
+      title: `${t('title')} — ${rangeFrom} – ${rangeTo}`,
+      sections: [
+        {
+          title: 'KPI',
+          header: [t('export.metric'), t('export.value'), t('export.prevPeriod')],
+          rows: kpiTiles.map((x) => [x.label, Math.round(x.cur), Math.round(x.prev)]),
+        },
+        {
+          title: t('dynamics'),
+          header: [t('export.date'), t('export.count'), t('export.revenue')],
+          rows: series.map((d) => [d.day, d.count, d.revenue]),
+          moneyCols: [3],
+        },
+        {title: t('byResource'), header: crHeader, rows: cr(resRows, rName), moneyCols: [3]},
+        {
+          title: t('byStatus'),
+          header: crHeader,
+          rows: statusRows.map((r) => [
+            ts(r.key) + (['CANCELLED', 'NO_SHOW'].includes(r.key) ? ` (${t('lost')})` : ''),
+            r.count, r.revenue,
+          ]),
+          moneyCols: [3],
+        },
+        {title: t('bySource'), header: crHeader, rows: cr(sourceRows, (v) => tsrc(v)), moneyCols: [3]},
+        {title: t('byTariff'), header: crHeader, rows: cr(tariffRows, (v) => tt(v)), moneyCols: [3]},
+        {
+          title: t('byPayment'), header: crHeader,
+          rows: cr(paymentRows, (v) => (v === 'UNKNOWN' ? '—' : tpm(v))), moneyCols: [3],
+        },
+        {title: t('byWeekday'), header: crHeader, rows: cr(weekdayRows, weekdayLabel), moneyCols: [3]},
+        {
+          title: t('topClients'), header: crHeader,
+          rows: top.map((c) => [cMap.get(c.clientId)?.name ?? c.clientId, c.count, c.revenue]),
+          moneyCols: [3],
+        },
+        {
+          title: t('addons'), header: crHeader,
+          rows: addonRows.map((a) => [aName(a.addonId), a.qty, a.revenue]),
+          moneyCols: [3],
+        },
+        {
+          title: t('delivery.title'),
+          header: [t('export.metric'), t('export.value')],
+          rows: [
+            [t('delivery.orders'), dlv.count],
+            [t('delivery.revenue'), Math.round(dlv.amount)],
+            [t('delivery.avgCheck'), Math.round(dlv.avg)],
+            [t('delivery.courier'), Math.round(dlv.courier)],
+          ],
+        },
+      ],
+    });
+  }
 
   const presetBtn = (p: Preset, label: string) => (
     <button
@@ -199,23 +289,36 @@ export default function AnalyticsView({
               {t('period.apply')}
             </button>
           </div>
+          <button
+            onClick={downloadXlsx}
+            className="rounded-md border border-border px-2.5 py-1.5 text-sm hover:bg-subtle"
+          >
+            ⬇ {t('download')}
+          </button>
         </div>
       </div>
 
-      {/* KPI */}
+      {/* KPI: значение за период + дельта к предыдущему периоду той же длины */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {[
-          {label: t('kpi.bookings'), value: k.count.toLocaleString(locale)},
-          {label: t('kpi.revenue'), value: money(k.revenue)},
-          {label: t('kpi.avgCheck'), value: money(k.avgCheck)},
-          {label: t('kpi.guests'), value: k.guests.toLocaleString(locale)},
-          {label: t('kpi.prepayments'), value: money(prepaymentTotal(prepaid))},
-        ].map((c) => (
-          <div key={c.label} className="rounded-lg border border-border bg-card p-3">
-            <div className="text-xs text-muted">{c.label}</div>
-            <div className="mt-1 text-lg font-semibold tracking-tight">{c.value}</div>
-          </div>
-        ))}
+        {kpiTiles.map((c) => {
+          const d = c.prev > 0 ? Math.round(((c.cur - c.prev) / c.prev) * 100) : null;
+          return (
+            <div key={c.label} className="rounded-lg border border-border bg-card p-3">
+              <div className="flex items-baseline justify-between gap-2">
+                <div className="min-w-0 truncate text-xs text-muted">{c.label}</div>
+                <span
+                  title={t('vsPrev')}
+                  className={`shrink-0 text-xs tabular-nums ${
+                    d === null || d === 0 ? 'text-muted' : d > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'
+                  }`}
+                >
+                  {d === null ? '—' : d > 0 ? `+${d}%` : `${d}%`}
+                </span>
+              </div>
+              <div className="mt-1 text-lg font-semibold tracking-tight">{c.value}</div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Динамика по дням/месяцам */}
@@ -269,6 +372,7 @@ export default function AnalyticsView({
       <section className="mt-6 grid gap-4 sm:grid-cols-2">
         {breakdown(t('byStatus'), statusRows, (v) => ts(v), ['CANCELLED', 'NO_SHOW'])}
         {breakdown(t('bySource'), sourceRows, (v) => tsrc(v))}
+        {breakdown(t('byTariff'), tariffRows, (v) => tt(v))}
       </section>
 
       {/* Деньги: способы оплаты предоплат + дни недели */}

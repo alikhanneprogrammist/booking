@@ -1,7 +1,7 @@
 import {describe, expect, it} from 'vitest';
 import {
   kpis, byResource, byEnum, topClients, addonStats,
-  prepaymentTotal, byPayment, discountsTotal, byDay, toMonthly, byWeekday,
+  prepaymentTotal, byPayment, discountsTotal, outstandingTotal, byDay, toMonthly, byWeekday,
 } from '@/lib/analytics';
 import type {MockBooking} from '@/lib/types';
 
@@ -106,6 +106,24 @@ describe('discountsTotal', () => {
     expect(discountsTotal([mk({discountType: 'PERCENT', discountValue: 10, total: 126_000})])).toBe(14_000);
     // PERCENT=100 не восстановить (total 0) — пропускается
     expect(discountsTotal([mk({discountType: 'PERCENT', discountValue: 100, total: 0})])).toBe(0);
+  });
+});
+
+describe('outstandingTotal', () => {
+  it('сумма (total − предоплата); переплата не уходит в минус', () => {
+    // Arrange
+    const rows = [
+      mk({total: 100_000, prepayment: 30_000}), // остаток 70 000
+      mk({total: 50_000, prepayment: 0}), // остаток 50 000
+      mk({total: 20_000, prepayment: 25_000}), // переплата → 0, не −5 000
+    ];
+
+    // Act
+    const sum = outstandingTotal(rows);
+
+    // Assert
+    expect(sum).toBe(120_000);
+    expect(outstandingTotal([])).toBe(0);
   });
 });
 

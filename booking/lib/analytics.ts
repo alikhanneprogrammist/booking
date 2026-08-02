@@ -106,6 +106,11 @@ export function discountsTotal(bookings: MockBooking[]): number {
   return Math.round(sum);
 }
 
+/** Остаток к оплате: сумма (total − предоплата) по броням, где предоплата не покрывает счёт. */
+export function outstandingTotal(bookings: MockBooking[]): number {
+  return bookings.reduce((s, b) => s + Math.max(0, b.total - b.prepayment), 0);
+}
+
 export interface DayPoint {
   day: string; // YYYY-MM-DD (день Алматы) или YYYY-MM после toMonthly
   count: number;

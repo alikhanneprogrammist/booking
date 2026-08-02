@@ -45,18 +45,25 @@ export default async function AnalyticsPage({
     from = almatyDayStart(addDays(now, -(days - 1)));
   }
 
-  const [bookingsRaw, prepaid, resources, clients, addons, delivery] = await Promise.all([
+  // Предыдущий период той же длины впритык до текущего — для дельт на KPI-плитках.
+  const prevFrom = new Date(from.getTime() - (to.getTime() - from.getTime()));
+
+  const [bookingsRaw, prepaid, resources, clients, addons, delivery, prevRaw, prevPrepaid] = await Promise.all([
     getBookingsStartingBetween(from, to),
     getBookingsPrepaidBetween(from, to), // деньги по дате получения (вкл. импортированную историю)
     getResources(),
     getClients(),
     getAddons(),
     getDeliveryOrdersBetween(from, to),
+    getBookingsStartingBetween(prevFrom, from),
+    getBookingsPrepaidBetween(prevFrom, from),
   ]);
 
   // Импортированные из эксель-журнала записи (нулевая длительность [X, X)) — не брони,
   // а строки денежной истории: в подсчёте броней/гостей/чека они бы искажали цифры.
-  const bookings = bookingsRaw.filter((b) => b.endAt.getTime() > b.startAt.getTime());
+  const noImported = (b: {startAt: Date; endAt: Date}) => b.endAt.getTime() > b.startAt.getTime();
+  const bookings = bookingsRaw.filter(noImported);
+  const prevBookings = prevRaw.filter(noImported);
 
   // Активный диапазон для полей выбора периода (конец — включительно).
   const fmt = (d: Date) => toLocalInput(d).slice(0, 10);
@@ -70,6 +77,8 @@ export default async function AnalyticsPage({
         clients={clients}
         addons={addons}
         delivery={delivery}
+        prevBookings={prevBookings}
+        prevPrepaid={prevPrepaid}
         preset={preset}
         rangeFrom={fmt(from)}
         rangeTo={fmt(addDays(to, -1))}
